@@ -3,13 +3,13 @@
 > Qui je suis, ce que je fais, mes objectifs. Rempli lors de l'installation, mis à jour via `/update`.
 
 ## Identité
-- **Nom :**
-- **Localisation :**
+- **Nom :** Gabriel (tutoiement)
+- **Localisation :** Rye, New York (États-Unis)
 - **Langue(s) :**
 
 ## Activité
-- **Métier / statut :**
-- **Entreprise / structure :**
+- **Métier / statut :** Étudiant
+- **Entreprise / structure :** French American School of New York (FASNY)
 - **Missions principales :**
 
 ## Projets en cours
@@ -26,4 +26,4 @@
 -
 
 ## Préférences de travail
--
+- Pas d'emoji
