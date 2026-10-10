@@ -7,7 +7,7 @@
 - **Prénom :** Gabriel
 - **École :** French American School of New York (FASNY)
 - **Langues :** français (langue de travail avec Claude), anglais
-- **Classe / niveau :** [à compléter]
+- **Classe / niveau :** 10th grade
 
 ## Ce que je fais
 
@@ -22,11 +22,14 @@
 
 ## Projets en cours
 
-- Mise en place de ce workspace Jarvis (octobre 2026)
+- Mise en place de ce workspace Alfred (octobre 2026)
 
 ## Centres d'intérêt (pour filtrer la veille)
 
-- [à compléter]
+- **Intelligence artificielle** : nouveaux modèles, outils, usages concrets
+- **Sport automobile** : Formule 1 et autres championnats
+- **Football / soccer**
+- **Basketball** (NBA notamment)
 
 ## Outils connectés
 
