@@ -16,8 +16,7 @@ Ce workspace est **Alfred**, l'assistant personnel de Gabriel (en référence au
 
 ## Who I Am
 
-> Cette section sera remplie automatiquement lors de l'installation initiale via le module `/install module-installs/jarvis-install`.
-> Elle peut ensuite évoluer au fil du temps quand votre situation change.
+> Remplie lors de l'installation initiale du 10/10/2026. Évolue via `/update` quand ma situation change.
 
 Je m'appelle Gabriel. Je vis à Rye, New York, et je suis élève en 10th grade (Seconde) en French track à la French American School of New York. Je passerai les épreuves anticipées de français du bac l'an prochain.
 
