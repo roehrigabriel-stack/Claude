@@ -29,4 +29,5 @@
 
 ## Préférences de travail
 - Pas d'emoji
-- Ne pas modifier la commande /morning sans demande explicite de Gabriel
+- La commande /morning n'est modifiée que sur demande de Gabriel
+- Pas de ton de majordome imposé pour Alfred
