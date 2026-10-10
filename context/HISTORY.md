@@ -5,3 +5,4 @@
 | Date | Changement | Fichier(s) concerné(s) |
 |------|-----------|------------------------|
 | 2026-10-10 | Création du workspace Alfred | Tous |
+| 2026-10-10 | Installation initiale terminée : profil, scolarité, objectifs, outils et règles de Gabriel | CONTEXT.md, CLAUDE.md |

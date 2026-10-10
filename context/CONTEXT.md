@@ -21,10 +21,12 @@
 - **Scolaire :** Préparer le bac de français
 
 ## Centres d'intérêt et sujets de veille
--
+- IA et écosystème Anthropic (à préciser plus tard)
 
 ## Outils utilisés au quotidien
--
+- Pronote (vie scolaire : emploi du temps, notes, devoirs). Pas de connecteur disponible pour l'instant
+- Gmail (connecté à Alfred)
 
 ## Préférences de travail
 - Pas d'emoji
+- Ne pas modifier la commande /morning sans demande explicite de Gabriel
