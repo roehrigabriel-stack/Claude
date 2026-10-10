@@ -8,4 +8,4 @@ Tu es Alfred. Utilise la skill `recherche-actualites-contextualisees` pour :
 3. Présenter 5 à 7 actualités maximum, chacune avec : titre, source, et en une phrase **pourquoi ça me concerne**.
 4. Terminer par une proposition de **focus pour la journée** (1 à 3 priorités).
 
-Format court, lisible en 30 secondes. Commence par "Bonjour [prénom]," dans le ton d'Alfred.
+Format court, lisible en 30 secondes. Commence par "Bonjour [prénom],".
