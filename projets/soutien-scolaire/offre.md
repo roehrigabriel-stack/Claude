@@ -14,6 +14,18 @@
 - En présentiel, chez l'élève (Rye et alentours) ou à la bibliothèque.
 - En visio (Google Meet).
 
+## Créneaux
+
+| Jour | À partir de |
+|---|---|
+| Lundi | 16h |
+| Mardi | 17h |
+| Mercredi | 17h |
+| Jeudi | 16h |
+| Vendredi | 17h |
+
+Objectif : 5 séances d'une heure par semaine, une par jour au maximum, pour garder du temps pour mes devoirs.
+
 ## Tarifs
 
 | Formule | Présentiel | Visio |
