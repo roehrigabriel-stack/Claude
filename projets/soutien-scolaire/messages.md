@@ -15,8 +15,8 @@ Remplace les éléments entre crochets avant d'envoyer.
 >
 > Après chaque séance, j'envoie un petit compte rendu aux parents.
 >
-> Toutes les infos : [lien de la page]
-> Pour me contacter : [numéro WhatsApp]
+> Toutes les infos : https://claude.ai/artifact/QQEyZauCujS1EpGwRfh8bD
+> Pour me contacter : (914) 814-0052
 >
 > Merci et bonne journée,
 > Gabriel
@@ -27,7 +27,7 @@ Remplace les éléments entre crochets avant d'envoyer.
 >
 > Je me lance dans les cours de soutien pour les élèves de primaire et de collège, en français et en sciences. Si [prénom de l'enfant] a besoin d'un coup de main, ou si tu connais une famille intéressée, je serais ravi d'en parler. La première séance de 30 min est offerte.
 >
-> Voici ma page : [lien]
+> Voici ma page : https://claude.ai/artifact/QQEyZauCujS1EpGwRfh8bD
 >
 > Merci beaucoup,
 > Gabriel
@@ -37,7 +37,7 @@ Remplace les éléments entre crochets avant d'envoyer.
 > **Soutien scolaire en français, du CP à la 3e**
 > Français, physique-chimie, SVT. Par un élève de Seconde du lycée français.
 > Rye et alentours ou en visio. Premier bilan offert.
-> Contact : [numéro WhatsApp]
+> Contact : (914) 814-0052
 
 ## Où publier
 

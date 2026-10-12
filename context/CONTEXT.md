@@ -14,9 +14,11 @@
 
 ## Projets en cours
 - **Alfred** : construction de son assistant personnel IA avec Claude Code (ce workspace)
+- **Soutien scolaire** (lancé le 12/10/2026) : cours de français du CP à la 3e, et de physique-chimie et SVT au collège, pour des familles francophones. En présentiel (Rye et alentours) ou en visio. 40 $/h en présentiel, 35 $/h en visio, premier bilan de 30 min offert. Parents d'accord et en soutien (paiements via leur compte). Dossier : `projets/soutien-scolaire/`
 
 ## Objectifs
-- **Court terme (3 mois) :** Faire fonctionner Alfred au quotidien
+- **Court terme (3 mois) :** Faire fonctionner Alfred au quotidien ; trouver ses premiers élèves en soutien scolaire
+- **Argent :** Environ 5h de cours par semaine (7h au total avec la préparation), soit 750 à 800 $ par mois
 - **Long terme (1 an et +) :** Maîtriser parfaitement l'intelligence artificielle, en particulier l'écosystème Anthropic (Claude, Claude Code, API, skills, MCP, agents)
 - **Scolaire :** Préparer le bac de français
 
