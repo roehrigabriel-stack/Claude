@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Soutien scolaire en français, physique-chimie et SVT du CP à la 3e, dans le programme français. Cours à Rye (NY) et en visio. Premier bilan de 30 min offert.">
+<meta property="og:title" content="Cours avec Gabriel, soutien scolaire du CP à la 3e">
+<meta property="og:description" content="Français, physique-chimie, SVT. Programme français, à Rye et en visio. Premier bilan offert.">
+<meta property="og:type" content="website">
+<meta name="color-scheme" content="light dark">
+<title>Cours avec Gabriel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Layout: barre de navigation, hero sur réglure Seyès discrète, sections en une colonne de 52rem */
+:root {
+  --paper: #fbfcfe;
+  --band: #f1f4fb;
+  --ink: #1f2a6b;
+  --ink-strong: #162059;
+  --on-ink: #ffffff;
+  --text: #23273a;
+  --muted: #5a6385;
+  --line: #e1e6f4;
+  --line-strong: #c3cdeb;
+  --margin: #c9384e;
+  --surface: #ffffff;
+  --display: "Young Serif", Georgia, "Times New Roman", serif;
+  --body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #10142a; --band: #141a35; --ink: #a9b8ff; --ink-strong: #c3ceff; --on-ink: #10142a;
+    --text: #e3e6f5; --muted: #9aa2c4; --line: #222a4b; --line-strong: #34406f;
+    --margin: #ff7c8e; --surface: #171c38;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #10142a; --band: #141a35; --ink: #a9b8ff; --ink-strong: #c3ceff; --on-ink: #10142a;
+  --text: #e3e6f5; --muted: #9aa2c4; --line: #222a4b; --line-strong: #34406f;
+  --margin: #ff7c8e; --surface: #171c38;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+img { max-width: 100%; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--paper);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+.wrap { max-width: 52rem; margin: 0 auto; padding-inline: 16px; }
+@media (min-width: 640px) { .wrap { padding-inline: 32px; } }
+
+/* Barre du haut */
+.topbar {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 10;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+.topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: .75rem; }
+.brand { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.brand strong { font-family: var(--display); font-weight: 400; font-size: 1.2rem; color: var(--ink); }
+.brand span { font-size: .78rem; color: var(--muted); letter-spacing: .04em; }
+
+.btn {
+  display: inline-block;
+  font: inherit; font-weight: 700; font-size: .95rem;
+  text-decoration: none;
+  padding: .6rem 1.1rem;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--ink); color: var(--on-ink); }
+.btn-primary:hover { background: var(--ink-strong); border-color: var(--ink-strong); }
+.btn-ghost { background: transparent; color: var(--ink); }
+.btn-ghost:hover { background: var(--band); }
+.btn:focus-visible, summary:focus-visible, button:focus-visible { outline: 2px solid var(--margin); outline-offset: 2px; }
+
+/* Hero */
+.hero {
+  border-bottom: 1px solid var(--line);
+  background-color: var(--band);
+  background-image:
+    linear-gradient(90deg, transparent 31px, var(--margin) 31px, var(--margin) 33px, transparent 33px),
+    linear-gradient(var(--line-strong) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 32px;
+  background-repeat: no-repeat, repeat;
+}
+.hero .wrap { padding-block: 3.5rem 3rem; padding-left: max(16px, 3.5rem); }
+@media (min-width: 640px) { .hero .wrap { padding-left: 4.5rem; } }
+.eyebrow {
+  font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 700;
+  color: var(--margin); margin: 0 0 .9rem;
+}
+h1 {
+  font-family: var(--display); font-weight: 400; color: var(--ink);
+  font-size: clamp(2rem, 5.5vw, 3rem); line-height: 1.12;
+  margin: 0 0 1.1rem; max-width: 36rem; text-wrap: balance;
+}
+.lede { margin: 0 0 1.75rem; max-width: 36rem; font-size: 1.1rem; }
+.ctas { display: flex; flex-wrap: wrap; gap: .75rem; }
+
+.facts {
+  list-style: none; margin: 2.5rem 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: 1rem 1.5rem;
+}
+.facts li { border-top: 1px solid var(--line-strong); padding-top: .6rem; min-width: 0; }
+.facts b { display: block; color: var(--ink); font-size: 1rem; }
+.facts span { font-size: .88rem; color: var(--muted); }
+
+/* Sections */
+main section { padding-block: 3.5rem 0; scroll-margin-top: 5rem; }
+.kicker { font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 .4rem; }
+h2 {
+  font-family: var(--display); font-weight: 400; color: var(--ink);
+  font-size: 1.75rem; line-height: 1.2; margin: 0 0 1.5rem; text-wrap: balance;
+}
+h3 { font-size: 1.05rem; margin: 0 0 .35rem; color: var(--text); }
+p { margin: 0 0 1rem; }
+
+.grid3 { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+.grid3 > div { min-width: 0; }
+.grid3 p { margin: 0; color: var(--muted); }
+
+.subjects { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
+.subject { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1.25rem; min-width: 0; }
+.subject .levels { font-size: .85rem; color: var(--muted); margin-bottom: .6rem; }
+.subject ul { margin: 0; padding-left: 1.1rem; }
+.subject li { margin-bottom: .25rem; }
+
+/* Tarifs */
+.prices { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+.price { border: 1px solid var(--line); border-radius: 6px; padding: 1.25rem; background: var(--surface); min-width: 0; }
+.price.featured { border-color: var(--ink); }
+.price .tag { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: var(--margin); }
+.price h3 { margin: .3rem 0 .75rem; }
+.price dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: .35rem 1rem; font-variant-numeric: tabular-nums; }
+.price dt { color: var(--muted); }
+.price dd { margin: 0; font-weight: 700; color: var(--ink); text-align: right; }
+.small { font-size: .9rem; color: var(--muted); margin-top: 1rem; }
+
+/* Créneaux */
+.slots {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); gap: .6rem;
+}
+.slots li {
+  border: 1px solid var(--line-strong); border-radius: 6px; padding: .7rem .8rem;
+  background: var(--surface); font-variant-numeric: tabular-nums;
+}
+.slots b { display: block; color: var(--text); }
+.slots span { color: var(--ink); font-weight: 700; }
+.slots li.we { background: var(--band); }
+
+/* Étapes */
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.25rem; counter-reset: s; }
+ol.steps li { display: grid; grid-template-columns: 2.25rem 1fr; gap: .75rem; counter-increment: s; }
+ol.steps li::before { content: counter(s); font-family: var(--display); color: var(--margin); font-size: 1.5rem; line-height: 1.2; }
+ol.steps li > div { min-width: 0; }
+ol.steps p { margin: 0; color: var(--muted); }
+
+/* FAQ */
+.faq details { border-bottom: 1px solid var(--line); }
+.faq details:first-child { border-top: 1px solid var(--line); }
+.faq summary {
+  cursor: pointer; list-style: none; padding: 1rem 2rem 1rem 0; font-weight: 700; position: relative;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; position: absolute; right: .25rem; top: .9rem; color: var(--ink); font-size: 1.25rem; line-height: 1; }
+.faq details[open] summary::after { content: "\2212"; }
+.faq details p { color: var(--muted); padding-right: 2rem; }
+
+/* Contact */
+.contact {
+  margin-top: 3.5rem; background: var(--band); border: 1px solid var(--line-strong);
+  border-radius: 6px; padding: 1.75rem;
+}
+.contact h2 { margin-bottom: .75rem; }
+.rows { display: grid; gap: .75rem; margin-top: 1.25rem; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
+.row .label { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); width: 6.5rem; font-weight: 700; }
+.row .value { font-weight: 700; color: var(--ink); user-select: all; min-width: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+button.copy {
+  font: inherit; font-size: .85rem; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line-strong); border-radius: 4px; padding: .25rem .7rem; cursor: pointer;
+}
+button.copy:hover { border-color: var(--ink); }
+
+footer { margin-top: 3.5rem; border-top: 1px solid var(--line); }
+footer .wrap { padding-block: 1.5rem 3rem; font-size: .85rem; color: var(--muted); display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1.5rem; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand"><strong>Gabriel</strong><span>Soutien scolaire · Programme français</span></div>
+    <a class="btn btn-primary" href="#contact">Réserver</a>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Du CP à la 3e · Rye et en visio</p>
+    <h1>Soutien scolaire en français et en sciences, dans le programme français</h1>
+    <p class="lede">Je suis Gabriel, élève de Seconde en filière française à la French American School of New York. J'accompagne les élèves du primaire et du collège pour qu'ils reprennent confiance et progressent, séance après séance.</p>
+    <div class="ctas">
+      <a class="btn btn-primary" href="#contact">Réserver le bilan offert</a>
+      <a class="btn btn-ghost" href="#tarifs">Voir les tarifs</a>
+    </div>
+    <ul class="facts">
+      <li><b>CP à 3e</b><span>Primaire et collège</span></li>
+      <li><b>3 matières</b><span>Français, physique-chimie, SVT</span></li>
+      <li><b>Chez vous ou en visio</b><span>Rye et environs, ou Google Meet</span></li>
+      <li><b>Suivi écrit</b><span>Compte rendu après chaque séance</span></li>
+    </ul>
+  </div>
+</header>
+
+<main class="wrap">
+  <section aria-labelledby="pourquoi">
+    <p class="kicker">Mon approche</p>
+    <h2 id="pourquoi">Pourquoi travailler avec moi</h2>
+    <div class="grid3">
+      <div><h3>Le programme, je le vis</h3><p>Je suis moi-même scolarisé dans le système français. Je connais les attentes des professeurs, les cahiers d'exercices et les épreuves du brevet.</p></div>
+      <div><h3>Un suivi transparent</h3><p>Après chaque séance, les parents reçoivent un compte rendu : ce qui a été travaillé, les progrès, les points à revoir.</p></div>
+      <div><h3>Un cadre qui met à l'aise</h3><p>Plus proche en âge qu'un professeur, j'aide les élèves à oser poser leurs questions et à retrouver le goût du travail.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="matieres">
+    <p class="kicker">Matières</p>
+    <h2 id="matieres">Ce que nous travaillons ensemble</h2>
+    <div class="subjects">
+      <div class="subject">
+        <h3>Français</h3>
+        <div class="levels">Du CP à la 3e</div>
+        <ul>
+          <li>Lecture et compréhension de texte</li>
+          <li>Orthographe, grammaire, conjugaison</li>
+          <li>Rédaction et expression écrite</li>
+          <li>Préparation au brevet en 3e</li>
+        </ul>
+      </div>
+      <div class="subject">
+        <h3>Physique-chimie et SVT</h3>
+        <div class="levels">De la 6e à la 3e</div>
+        <ul>
+          <li>Reprise du cours pas à pas</li>
+          <li>Méthode pour les exercices</li>
+          <li>Préparation des contrôles</li>
+          <li>Épreuve de sciences du brevet</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="tarifs" aria-labelledby="tarifs-titre">
+    <p class="kicker">Tarifs</p>
+    <h2 id="tarifs-titre">Des tarifs simples</h2>
+    <div class="prices">
+      <div class="price">
+        <span class="tag">Pour commencer</span>
+        <h3>Bilan de 30 min</h3>
+        <dl><dt>Chez vous</dt><dd>Offert</dd><dt>En visio</dt><dd>Offert</dd></dl>
+      </div>
+      <div class="price">
+        <span class="tag">À l'unité</span>
+        <h3>Séance d'une heure</h3>
+        <dl><dt>Chez vous</dt><dd>40 $</dd><dt>En visio</dt><dd>35 $</dd></dl>
+      </div>
+      <div class="price featured">
+        <span class="tag">10 % d'économie</span>
+        <h3>Forfait de 10 séances</h3>
+        <dl><dt>Chez vous</dt><dd>360 $</dd><dt>En visio</dt><dd>315 $</dd></dl>
+      </div>
+    </div>
+    <p class="small">Paiement par Venmo, Zelle ou en espèces. Une séance annulée moins de 24 heures à l'avance reste due, sauf en cas de maladie.</p>
+  </section>
+
+  <section aria-labelledby="creneaux">
+    <p class="kicker">Disponibilités</p>
+    <h2 id="creneaux">Créneaux de la semaine</h2>
+    <ul class="slots">
+      <li><b>Lundi</b><span>dès 16h00</span></li>
+      <li><b>Mardi</b><span>dès 17h00</span></li>
+      <li><b>Mercredi</b><span>dès 17h00</span></li>
+      <li><b>Jeudi</b><span>dès 16h00</span></li>
+      <li><b>Vendredi</b><span>dès 17h00</span></li>
+      <li class="we"><b>Samedi</b><span>dès 11h00</span></li>
+      <li class="we"><b>Dimanche</b><span>dès 11h00</span></li>
+    </ul>
+    <p class="small">Une fois choisi, le créneau est réservé à votre enfant chaque semaine.</p>
+  </section>
+
+  <section aria-labelledby="deroulement">
+    <p class="kicker">Déroulement</p>
+    <h2 id="deroulement">Comment ça se passe</h2>
+    <ol class="steps">
+      <li><div><h3>Le bilan offert</h3><p>30 minutes pour faire le point sur le niveau de votre enfant et identifier ce qui bloque.</p></div></li>
+      <li><div><h3>Des objectifs clairs</h3><p>Nous fixons ensemble un cap : un chapitre à rattraper, une méthode à installer, un contrôle ou le brevet à préparer.</p></div></li>
+      <li><div><h3>Des séances régulières</h3><p>Une ou deux séances par semaine, au même créneau, pour progresser sans à-coups.</p></div></li>
+      <li><div><h3>Un compte rendu après chaque séance</h3><p>Quelques lignes envoyées aux parents pour suivre les progrès en toute transparence.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="faq" aria-labelledby="faq">
+    <p class="kicker">Questions fréquentes</p>
+    <h2 id="faq">Vos questions</h2>
+    <details>
+      <summary>Où ont lieu les cours ?</summary>
+      <p>Chez vous à Rye et dans les villes voisines, ou en visio sur Google Meet. Le format peut changer d'une semaine à l'autre selon votre organisation.</p>
+    </details>
+    <details>
+      <summary>Mon enfant n'est pas scolarisé dans une école française. Est-ce possible ?</summary>
+      <p>Oui, dès lors qu'il suit le programme français (école française, CNED) ou qu'il parle français à la maison et souhaite progresser.</p>
+    </details>
+    <details>
+      <summary>Comment se passe le paiement ?</summary>
+      <p>Par Venmo, Zelle ou en espèces, après chaque séance ou au début du forfait de 10 séances.</p>
+    </details>
+    <details>
+      <summary>Et si nous devons annuler une séance ?</summary>
+      <p>Prévenez-moi au moins 24 heures à l'avance et nous la décalons sans frais. En dessous de 24 heures, la séance reste due, sauf en cas de maladie.</p>
+    </details>
+    <details>
+      <summary>Combien de séances faut-il prévoir ?</summary>
+      <p>Cela dépend de l'objectif. Pour combler une difficulté précise, quelques séances suffisent souvent. Pour un suivi de fond ou la préparation du brevet, une séance par semaine sur un trimestre donne de bons résultats.</p>
+    </details>
+  </section>
+
+  <section id="contact" class="contact" aria-labelledby="contact-titre">
+    <h2 id="contact-titre">Réserver le bilan offert</h2>
+    <p>Écrivez-moi sur WhatsApp ou par email en précisant la classe de votre enfant, la matière et vos disponibilités. Je vous réponds sous 24 heures.</p>
+    <div class="rows">
+      <div class="row">
+        <span class="label">WhatsApp</span>
+        <span class="value" id="v-phone">(914) 814-0052</span>
+        <button class="copy" type="button" data-target="v-phone">Copier</button>
+      </div>
+      <div class="row">
+        <span class="label">Email</span>
+        <span class="value" id="v-mail">roehrigabriel@gmail.com</span>
+        <button class="copy" type="button" data-target="v-mail">Copier</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Gabriel · Soutien scolaire à Rye, New York</span>
+    <span>Français · Physique-chimie · SVT</span>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll("button.copy").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    var el = document.getElementById(btn.dataset.target);
+    var text = el.textContent.trim();
+    function selectText() {
+      var r = document.createRange(); r.selectNodeContents(el);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    }
+    function done(label) { btn.textContent = label; setTimeout(function () { btn.textContent = "Copier"; }, 1600); }
+    try {
+      navigator.clipboard.writeText(text).then(function () { done("Copié"); }, function () { selectText(); done("Sélectionné"); });
+    } catch (e) { selectText(); done("Sélectionné"); }
+  });
+});
+</script>
+
+</body>
+</html>
