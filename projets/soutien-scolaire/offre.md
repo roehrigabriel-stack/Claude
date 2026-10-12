@@ -23,8 +23,10 @@
 | Mercredi | 17h |
 | Jeudi | 16h |
 | Vendredi | 17h |
+| Samedi | 11h |
+| Dimanche | 11h |
 
-Objectif : 5 séances d'une heure par semaine, une par jour au maximum, pour garder du temps pour mes devoirs.
+Objectif : 5 séances d'une heure par semaine au total, pour garder du temps pour mes devoirs. Plus de créneaux proposés que d'heures prévues, pour s'adapter aux familles.
 
 ## Tarifs
 
