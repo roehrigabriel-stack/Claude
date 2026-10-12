@@ -1,0 +1,260 @@
+<title>Cours avec Gabriel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Caveat:wght@600&display=swap">
+<style>
+/* Layout: page de cahier Seyès, marge rouge à gauche, contenu en une colonne lisible */
+:root {
+  --paper: #fbfcfe;
+  --ink: #1f2a6b;
+  --text: #23273a;
+  --muted: #5a6385;
+  --line: #d3dbf1;
+  --line-strong: #aebbe6;
+  --margin: #d6455b;
+  --surface: #ffffff;
+  --display: "Young Serif", Georgia, "Times New Roman", serif;
+  --body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --hand: "Caveat", "Bradley Hand", cursive;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #10142a; --ink: #a9b8ff; --text: #e3e6f5; --muted: #9aa2c4;
+    --line: #232b4d; --line-strong: #34406f; --margin: #ff7c8e; --surface: #171c38;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #10142a; --ink: #a9b8ff; --text: #e3e6f5; --muted: #9aa2c4;
+  --line: #232b4d; --line-strong: #34406f; --margin: #ff7c8e; --surface: #171c38;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+.page {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 0 4rem;
+}
+
+/* Hero : réglure Seyès (grands carreaux) */
+.hero {
+  position: relative;
+  padding-block: 3.5rem 3rem;
+  padding-inline: 1.5rem 0;
+  background-image:
+    linear-gradient(var(--line-strong) 1px, transparent 1px),
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 100% 32px, 100% 8px, 32px 100%;
+  background-position: 0 0, 0 0, 0 0;
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  width: 2px;
+  background: var(--margin);
+}
+.hero > * { position: relative; background: var(--paper); width: fit-content; max-width: 100%; }
+.eyebrow {
+  font-size: .8rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 .75rem;
+  padding: 0 .25rem;
+}
+h1 {
+  font-family: var(--display);
+  font-weight: 400;
+  color: var(--ink);
+  font-size: clamp(2.1rem, 6vw, 3.2rem);
+  line-height: 1.12;
+  margin: 0 0 1.25rem;
+  text-wrap: balance;
+  padding: .1rem .25rem;
+}
+.lede { margin: 0; padding: .25rem; max-width: 34rem; }
+.note {
+  font-family: var(--hand);
+  color: var(--margin);
+  font-size: 1.6rem;
+  line-height: 1.2;
+  margin: 1.25rem 0 0;
+  padding: 0 .25rem;
+  transform: rotate(-2deg);
+}
+
+section { padding-block: 2.5rem 0; }
+h2 {
+  font-family: var(--display);
+  font-weight: 400;
+  color: var(--ink);
+  font-size: 1.6rem;
+  line-height: 1.25;
+  margin: 0 0 1.25rem;
+  text-wrap: balance;
+}
+h3 { font-size: 1.05rem; margin: 0 0 .35rem; color: var(--text); }
+p { margin: 0 0 1rem; }
+
+/* Matières */
+.subjects { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+.subject { border-top: 2px solid var(--ink); padding-top: .75rem; min-width: 0; }
+.subject .levels { font-size: .85rem; color: var(--muted); margin-bottom: .5rem; letter-spacing: .02em; }
+.subject ul { margin: 0; padding-left: 1.1rem; }
+.subject li { margin-bottom: .2rem; }
+
+/* Tarifs */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: .7rem .5rem; border-bottom: 1px solid var(--line-strong); }
+th { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+td.num, th.num { text-align: right; }
+td.num { font-weight: 700; color: var(--ink); }
+.small { font-size: .9rem; color: var(--muted); margin-top: .75rem; }
+
+/* Étapes */
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.25rem; counter-reset: s; }
+ol.steps li { display: grid; grid-template-columns: 2.25rem 1fr; gap: .75rem; counter-increment: s; }
+ol.steps li::before {
+  content: counter(s);
+  font-family: var(--display);
+  color: var(--margin);
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+ol.steps li > div { min-width: 0; }
+ol.steps p { margin: 0; }
+
+/* Contact */
+.contact {
+  margin-top: 3rem;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--margin);
+  padding: 1.5rem;
+}
+.contact h2 { margin-bottom: .75rem; }
+.rows { display: grid; gap: .75rem; margin-top: 1rem; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
+.row .label { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); width: 7rem; }
+.row .value { font-weight: 700; color: var(--ink); user-select: all; min-width: 0; overflow-wrap: anywhere; }
+button.copy {
+  font: inherit; font-size: .85rem;
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--line-strong);
+  padding: .25rem .7rem; cursor: pointer;
+}
+button.copy:hover { border-color: var(--ink); }
+button.copy:focus-visible { outline: 2px solid var(--margin); outline-offset: 2px; }
+
+footer { margin-top: 2.5rem; font-size: .85rem; color: var(--muted); }
+</style>
+
+<div class="page">
+  <header class="hero">
+    <p class="eyebrow">Soutien scolaire · CP à 3e · Rye et en visio</p>
+    <h1>Des cours de soutien en français, par un élève du lycée français</h1>
+    <p class="lede">Je m'appelle Gabriel, je suis en Seconde en filière française à la French American School of New York. J'aide les élèves du primaire et du collège en français, en physique-chimie et en SVT.</p>
+    <p class="note">Premier bilan de 30 min offert</p>
+  </header>
+
+  <section aria-labelledby="matieres">
+    <h2 id="matieres">Matières</h2>
+    <div class="subjects">
+      <div class="subject">
+        <h3>Français</h3>
+        <div class="levels">Du CP à la 3e</div>
+        <ul>
+          <li>Lecture et compréhension</li>
+          <li>Orthographe, grammaire, conjugaison</li>
+          <li>Rédaction et expression écrite</li>
+          <li>Préparation au brevet en 3e</li>
+        </ul>
+      </div>
+      <div class="subject">
+        <h3>Physique-chimie et SVT</h3>
+        <div class="levels">De la 6e à la 3e</div>
+        <ul>
+          <li>Reprendre le cours pas à pas</li>
+          <li>Méthode pour les exercices</li>
+          <li>Préparation des contrôles</li>
+          <li>Épreuve de sciences du brevet</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="tarifs">
+    <h2 id="tarifs">Tarifs</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Formule</th><th class="num">Chez vous</th><th class="num">En visio</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Séance d'une heure</td><td class="num">40 $</td><td class="num">35 $</td></tr>
+          <tr><td>Forfait de 10 séances</td><td class="num">360 $</td><td class="num">315 $</td></tr>
+          <tr><td>Premier bilan, 30 min</td><td class="num">Offert</td><td class="num">Offert</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small">Séances chez vous à Rye et dans les environs, ou en visio sur Google Meet. Une séance annulée moins de 24 heures avant reste due, sauf en cas de maladie.</p>
+  </section>
+
+  <section aria-labelledby="deroulement">
+    <h2 id="deroulement">Comment ça se passe</h2>
+    <ol class="steps">
+      <li><div><h3>Le bilan</h3><p>30 minutes offertes pour voir où en est votre enfant et ce qui coince.</p></div></li>
+      <li><div><h3>Un programme adapté</h3><p>On fixe ensemble les objectifs : un chapitre à rattraper, une méthode à installer, un contrôle ou le brevet à préparer.</p></div></li>
+      <li><div><h3>Des séances régulières</h3><p>Une ou deux séances par semaine, au même créneau, pour avancer sans à-coups.</p></div></li>
+      <li><div><h3>Un compte rendu après chaque séance</h3><p>Vous recevez quelques lignes : ce qu'on a travaillé, les progrès, ce qu'il reste à revoir.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="contact" aria-labelledby="contact">
+    <h2 id="contact">Réserver le premier bilan</h2>
+    <p>Écrivez-moi sur WhatsApp ou par email avec la classe de votre enfant et la matière. Je réponds le jour même.</p>
+    <div class="rows">
+      <div class="row">
+        <span class="label">WhatsApp</span>
+        <span class="value" id="v-phone">[ton numéro]</span>
+        <button class="copy" type="button" data-target="v-phone">Copier</button>
+      </div>
+      <div class="row">
+        <span class="label">Email</span>
+        <span class="value" id="v-mail">[ton email]</span>
+        <button class="copy" type="button" data-target="v-mail">Copier</button>
+      </div>
+    </div>
+  </section>
+
+  <footer>Gabriel · Soutien scolaire à Rye, New York</footer>
+</div>
+
+<script>
+document.querySelectorAll("button.copy").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    var el = document.getElementById(btn.dataset.target);
+    var text = el.textContent.trim();
+    function selectText() {
+      var r = document.createRange(); r.selectNodeContents(el);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    }
+    function done(label) { btn.textContent = label; setTimeout(function () { btn.textContent = "Copier"; }, 1600); }
+    try {
+      navigator.clipboard.writeText(text).then(function () { done("Copié"); }, function () { selectText(); done("Sélectionné"); });
+    } catch (e) { selectText(); done("Sélectionné"); }
+  });
+});
+</script>
