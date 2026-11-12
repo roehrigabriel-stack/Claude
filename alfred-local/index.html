@@ -178,6 +178,13 @@ main { display: flex; flex-direction: column; min-width: 0; min-height: 0; heigh
 .grow { flex: 1; }
 .send { display: grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 50%; background: var(--primary); color: var(--on-primary); }
 .send svg { stroke-width: 2.2; }
+.notice { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; max-width: 760px; margin: 0 auto 10px; padding: 10px 12px 10px 16px; border: 1px solid var(--brass); border-radius: 16px; background: var(--raised); font-size: 0.92rem; }
+.notice span { flex: 1 1 220px; min-width: 0; }
+.notice .meter { flex: 1 1 100%; order: 3; background: var(--line); }
+.notice .btn { padding: 8px 16px; }
+.notice.flash { animation: flash 0.5s 2; }
+@keyframes flash { 50% { transform: translateY(-3px); } }
+.noscript { max-width: 560px; margin: 40px auto; padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
 .hint { max-width: 760px; margin: 8px auto 0; color: var(--muted); font-size: 0.75rem; text-align: center; }
 
 /* Fenêtres (modèle, réglages) */
@@ -221,6 +228,8 @@ dialog::backdrop { background: rgba(6, 8, 12, 0.6); backdrop-filter: blur(4px); 
 </head>
 <body>
 
+<noscript><p class="noscript">Alfred a besoin de JavaScript pour fonctionner. Si tu vois ce message, la page est ouverte dans un simple aperçu : ouvre le fichier dans un vrai navigateur (Chrome ou Edge sur ordinateur de préférence).</p></noscript>
+
 <svg hidden>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></symbol>
@@ -259,6 +268,11 @@ dialog::backdrop { background: rgba(6, 8, 12, 0.6); backdrop-filter: blur(4px); 
     </div>
     <div class="scroll" id="scroll"><div class="thread" id="thread" aria-live="polite"></div></div>
     <div class="dock">
+      <div class="notice" id="notice" role="status" hidden>
+        <span id="notice-text"></span>
+        <div class="meter" id="notice-meter" hidden><div id="notice-bar"></div></div>
+        <button class="btn go" id="notice-go" type="button">Démarrer Alfred</button>
+      </div>
       <form class="composer" id="form">
         <textarea id="input" rows="1" maxlength="6000" placeholder="Demande quelque chose à Alfred..." aria-label="Ton message"></textarea>
         <div class="bar">
@@ -414,6 +428,8 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
   let engine = null;      // Web Worker, ou objet équivalent dans la page
   let ready = false;      // un modèle est chargé
   let loading = false;
+  let loadPct = null;     // avancement du téléchargement du modèle, en %
+  let loadError = "";     // dernière erreur de démarrage, affichée au-dessus de la zone de saisie
   let active = null;      // modèle chargé (entrée de MODELS)
   let busy = false;       // une réponse est en cours
   let cancelled = false;
@@ -509,7 +525,11 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
       const pct = Math.min(100, Math.round((data.loaded / data.total) * 100));
       $("meter").style.width = pct + "%";
       $("meter").parentElement.setAttribute("aria-valuenow", String(pct));
-      $("setup-note").textContent = `Téléchargement : ${Math.round(data.loaded / 1e6)} Mo sur ${Math.round(data.total / 1e6)} Mo. Garde cette page ouverte.`;
+      $("setup-note").textContent = pct >= 100
+        ? "Téléchargement terminé. Démarrage du modèle, cela peut prendre une minute..."
+        : `Téléchargement : ${Math.round(data.loaded / 1e6)} Mo sur ${Math.round(data.total / 1e6)} Mo. Garde cette page ouverte.`;
+      loadPct = pct;
+      paintNotice();
     } else if (data.type === "ready") {
       ready = true; loading = false;
       store.set("loaded", active.id);
@@ -531,9 +551,11 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
         pending.clear();
         const wasGpu = gpu;
         if (wasGpu) gpu = false; // carte graphique refusée : on propose le modèle sur processeur
-        openSetup(wasGpu
+        loadError = (wasGpu
           ? "Le modèle n'a pas pu démarrer sur la carte graphique. Vérifie ta connexion et recharge la page, ou essaie le modèle de secours."
-          : "Le modèle n'a pas pu démarrer. Vérifie ta connexion, ou essaie un navigateur récent (Chrome, Edge) sur un ordinateur.");
+          : "Le modèle n'a pas pu démarrer. Vérifie ta connexion, ou essaie un navigateur récent (Chrome, Edge) sur un ordinateur.")
+          + ` (Détail technique : ${String(data.message).slice(0, 140)})`;
+        openSetup(loadError);
         refreshChrome();
       } else {
         const job = pending.get(data.id); pending.delete(data.id);
@@ -543,7 +565,7 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
   }
 
   function startEngine(model) {
-    active = model; ready = false; loading = true;
+    active = model; ready = false; loading = true; loadPct = null; loadError = "";
     store.set("model", model.id);
     engine?.terminate();
     const request = { type: "load", model: model.id, device: gpu ? "webgpu" : "wasm", dtype: model.dtype };
@@ -979,8 +1001,22 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
     const send = $("send");
     send.innerHTML = icon(busy ? "stop" : "up");
     send.setAttribute("aria-label", busy ? "Arrêter" : "Envoyer");
-    send.disabled = busy ? false : !ready || !$("input").value.trim();
-    $("input").placeholder = ready ? "Demande quelque chose à Alfred..." : "Démarre Alfred pour lui écrire...";
+    send.disabled = busy ? false : !$("input").value.trim();
+    paintNotice();
+  }
+
+  // Bandeau au-dessus de la zone de saisie : dit toujours pourquoi Alfred ne peut pas encore répondre.
+  function paintNotice() {
+    $("notice").hidden = ready;
+    if (ready) return;
+    $("notice-go").hidden = loading;
+    $("notice-meter").hidden = !loading || loadPct == null;
+    $("notice-bar").style.width = (loadPct || 0) + "%";
+    $("notice-text").textContent = loading
+      ? loadPct == null ? "Alfred se prépare : chargement du modèle..."
+        : loadPct >= 100 ? "Téléchargement terminé. Démarrage du modèle, cela peut prendre une minute..."
+        : `Alfred se prépare : téléchargement du modèle, ${loadPct} %. Tu pourras écrire dès que c'est fini.`
+      : loadError || "Alfred n'est pas encore démarré : il faut d'abord télécharger un modèle (une seule fois).";
   }
 
   function resize() {
@@ -1081,7 +1117,13 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
     event.preventDefault();
     if (busy) return stop();
     const question = $("input").value.trim();
-    if (!question || !ready) return;
+    if (!question) return;
+    if (!ready) {
+      // Pas encore de modèle : on garde le message et on montre quoi faire.
+      if (loading) { $("notice").classList.remove("flash"); void $("notice").offsetWidth; $("notice").classList.add("flash"); }
+      else openSetup();
+      return;
+    }
     $("input").value = "";
     resize();
     ask(question);
@@ -1107,7 +1149,9 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
   function openSetup(alert) {
     const saved = store.get("model", null);
     const list = models();
-    const picked = list.find((m) => m.id === (active?.id || saved)) || list[0];
+    // Sur téléphone ou appareil avec peu de mémoire, on propose d'abord le modèle Léger.
+    const small = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.deviceMemory || 8) <= 4;
+    const picked = list.find((m) => m.id === (active?.id || saved)) || (small && list.find((m) => m.name === "Léger")) || list[0];
     $("choices").textContent = "";
     for (const m of list) {
       const label = el("label", "choice");
@@ -1138,6 +1182,7 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
     renderThread();
   });
   $("setup-close").addEventListener("click", () => $("setup").close());
+  $("notice-go").addEventListener("click", () => openSetup());
   $("setup").addEventListener("cancel", (event) => { if (loading) event.preventDefault(); });
   $("model-open").addEventListener("click", () => { if (!busy) { closeMenu(); openSetup(); } });
 
