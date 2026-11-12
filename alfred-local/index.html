@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alfred</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Une colonne de cahier : papier et encre bleue en clair, tableau noir et craie en sombre. */
+:root {
+  --paper: #f7f8fc;
+  --sheet: #ffffff;
+  --ink: #1a2142;
+  --muted: #5b6285;
+  --rule: #cfd4ee;
+  --soft: #eceef9;
+  --pen: #2a3ec2;
+  --on-pen: #ffffff;
+  --margin: #d2413a;
+  --bubble: #e4e8fb;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --body: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #121917; --sheet: #1a2420; --ink: #e9eee8; --muted: #96a59c;
+    --rule: #33443c; --soft: #212d28; --pen: #f1d468; --on-pen: #17170f;
+    --margin: #ff8f85; --bubble: #263530;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.55 var(--body); }
+
+.wrap {
+  max-width: 760px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 20px max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+h1 { margin: 0; font: 700 1.9rem/1.1 var(--display); letter-spacing: -0.01em; }
+h1 span { color: var(--pen); }
+header p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+
+button {
+  padding: 9px 16px;
+  border: 1.5px solid var(--pen);
+  border-radius: 8px;
+  background: var(--pen);
+  color: var(--on-pen);
+  font: 600 0.95rem var(--body);
+  cursor: pointer;
+}
+button:disabled { opacity: 0.5; cursor: default; }
+button.quiet { background: transparent; color: var(--pen); border-color: var(--rule); }
+button:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; }
+
+select, textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1.5px solid var(--rule);
+  border-radius: 8px;
+  background: var(--sheet);
+  color: var(--ink);
+  font: 400 1rem var(--body);
+}
+textarea { resize: vertical; }
+
+/* Carte de démarrage et barre d'état du modèle */
+.engine {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1.5px solid var(--rule);
+  border-radius: 10px;
+  background: var(--sheet);
+}
+.engine h2 { margin: 0; font: 700 1.1rem/1.3 var(--display); }
+.engine p { margin: 0; color: var(--muted); font-size: 0.93rem; }
+.engine label { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; font-weight: 600; color: var(--muted); }
+.engine .row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.engine .row label { flex: 1 1 220px; }
+.bar { height: 8px; border-radius: 4px; background: var(--soft); overflow: hidden; }
+.bar div { height: 100%; width: 0; background: var(--pen); transition: width 0.2s; }
+.status { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: 0.85rem; }
+.status button { padding: 0; border: 0; background: none; color: var(--pen); font-weight: 600; font-size: 0.85rem; }
+.alert { color: var(--margin) !important; font-weight: 600; }
+
+.chat { flex: 1; display: flex; flex-direction: column; gap: 12px; min-height: 160px; }
+.empty { display: flex; flex-direction: column; gap: 10px; color: var(--muted); }
+.empty p { margin: 0; }
+.ideas { display: flex; flex-wrap: wrap; gap: 8px; }
+.ideas button { background: var(--sheet); color: var(--ink); border-color: var(--rule); font-weight: 400; text-align: left; }
+.msg { min-width: 0; overflow-wrap: anywhere; }
+.msg.user { align-self: flex-end; max-width: 85%; padding: 9px 14px; border-radius: 14px 14px 3px 14px; background: var(--bubble); white-space: pre-wrap; }
+.msg.alfred { padding-left: 14px; border-left: 2px solid var(--margin); }
+.thinking { color: var(--muted); }
+.thinking::after { content: "..."; animation: dots 1.2s infinite; }
+@keyframes dots { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .thinking::after { animation: none; } .bar div { transition: none; } }
+
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+.md h2 { font: 700 1.15rem/1.3 var(--display); margin: 1.1em 0 0.35em; }
+.md h3 { font: 500 1.02rem/1.3 var(--display); margin: 1em 0 0.3em; }
+.md p { margin: 0.5em 0; }
+.md ul, .md ol { margin: 0.4em 0; padding-left: 1.3em; }
+.md code { font-size: 0.92em; background: var(--soft); padding: 1px 5px; border-radius: 4px; }
+.md pre { background: var(--soft); padding: 10px; border-radius: 8px; overflow-x: auto; }
+.md pre code { padding: 0; background: none; }
+
+.composer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0 calc(10px + env(safe-area-inset-bottom, 0px));
+  background: var(--paper);
+}
+.actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.composer small { color: var(--muted); font-size: 0.78rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Alfred<span>.</span></h1>
+    <p>Ton IA, qui tourne sur ton appareil.</p>
+  </header>
+
+  <section id="setup" class="engine">
+    <h2>Démarrer Alfred</h2>
+    <p>Alfred est un petit modèle de langage libre qui fonctionne directement dans ton navigateur. Rien n'est payant et tes questions ne quittent pas ton appareil. Au premier démarrage, le modèle se télécharge une fois, puis il reste en mémoire sur cet appareil.</p>
+    <div class="row">
+      <label for="model">Taille du modèle
+        <select id="model"></select>
+      </label>
+      <button id="start" type="button">Télécharger et démarrer</button>
+    </div>
+    <p id="setup-note"></p>
+  </section>
+
+  <section id="loading" class="engine" hidden>
+    <h2 id="loading-title">Téléchargement du modèle</h2>
+    <div class="bar" role="progressbar" aria-labelledby="loading-title" aria-valuemin="0" aria-valuemax="100"><div id="bar"></div></div>
+    <p id="loading-note">Garde cette page ouverte.</p>
+  </section>
+
+  <div id="status" class="status" hidden>
+    <span id="status-text"></span>
+    <button id="change" type="button">Changer de modèle</button>
+  </div>
+
+  <div id="chat" class="chat" aria-live="polite"></div>
+
+  <form id="form" class="composer">
+    <textarea id="input" rows="2" maxlength="4000" placeholder="Pose une question..." aria-label="Ta question" required></textarea>
+    <div class="actions">
+      <button type="button" class="quiet" id="reset">Nouvelle conversation</button>
+      <button type="button" class="quiet" id="stop" hidden>Arrêter</button>
+      <button type="submit" id="send" disabled>Envoyer</button>
+    </div>
+    <small>Alfred est un petit modèle : il répond aux questions simples mais se trompe parfois, et il n'a pas accès à Internet.</small>
+  </form>
+</div>
+
+<!-- Le moteur : ce code tourne dans un fil séparé (Web Worker) pour ne pas figer la page.
+     Si la page est ouverte comme simple fichier, le navigateur refuse ce fil : le moteur tourne alors dans la page. -->
+<script id="engine" type="text/plain">
+import { pipeline, TextStreamer, InterruptableStoppingCriteria } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2";
+
+// Le moteur reçoit des messages (load, generate, stop) et répond avec send().
+export function createEngine(send) {
+  let generator = null;
+  const stopper = new InterruptableStoppingCriteria();
+
+  async function load(model, device, dtype) {
+    const files = new Map();
+    const progress = (p) => {
+      if (p.status !== "progress" || !p.total) return;
+      files.set(p.file, [p.loaded, p.total]);
+      let loaded = 0, total = 0;
+      for (const [l, t] of files.values()) { loaded += l; total += t; }
+      send({ type: "progress", loaded, total });
+    };
+    return pipeline("text-generation", model, { device, dtype, progress_callback: progress });
+  }
+
+  async function receive(data) {
+    if (data.type === "stop") { stopper.interrupt(); return; }
+
+    if (data.type === "load") {
+      generator = null;
+      try {
+        generator = await load(data.model, data.device, data.dtype);
+        send({ type: "ready" });
+      } catch (error) {
+        send({ type: "error", stage: "load", message: String(error?.message || error) });
+      }
+      return;
+    }
+
+    if (data.type === "generate") {
+      stopper.reset();
+      try {
+        const streamer = new TextStreamer(generator.tokenizer, {
+          skip_prompt: true,
+          skip_special_tokens: true,
+          callback_function: (text) => send({ type: "token", text }),
+        });
+        await generator(data.messages, {
+          max_new_tokens: 600,
+          do_sample: false,
+          repetition_penalty: 1.05,
+          streamer,
+          stopping_criteria: stopper,
+        });
+        send({ type: "done" });
+      } catch (error) {
+        send({ type: "error", stage: "generate", message: String(error?.message || error) });
+      }
+    }
+  }
+  return receive;
+}
+
+// Dans un Web Worker, on branche le moteur sur les messages du fil.
+if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope) {
+  const receive = createEngine((message) => self.postMessage(message));
+  self.onmessage = (event) => receive(event.data);
+}
+</script>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  // Modèles libres convertis pour le navigateur. La liste dépend de l'appareil :
+  // avec une carte graphique (WebGPU), les modèles LFM2 de Liquid AI ; sinon un
+  // modèle Qwen 2.5 d'Alibaba, le seul de cette taille qui tourne sur processeur.
+  const MODELS = {
+    gpu: [
+      { id: "onnx-community/LFM2-1.2B-ONNX", dtype: "q4", name: "Standard", size: "850 Mo", note: "Le meilleur choix sur un ordinateur récent." },
+      { id: "onnx-community/LFM2-350M-ONNX", dtype: "q4", name: "Léger", size: "300 Mo", note: "Plus rapide et plus petit, pour un téléphone ou un appareil modeste. Réponses plus approximatives." },
+    ],
+    cpu: [
+      { id: "onnx-community/Qwen2.5-0.5B-Instruct", dtype: "q4", name: "Secours", size: "790 Mo", note: "Ce navigateur ne donne pas accès à la carte graphique : Alfred tournera sur le processeur, lentement, avec un modèle moins bon. Chrome ou Edge sur un ordinateur récent donnent de bien meilleurs résultats." },
+    ],
+  };
+
+
+
+  const store = {
+    get(key, fallback) { try { return JSON.parse(localStorage.getItem("alfred-local." + key)) ?? fallback; } catch { return fallback; } },
+    set(key, value) { try { localStorage.setItem("alfred-local." + key, JSON.stringify(value)); } catch {} },
+  };
+
+  let worker = null; // le moteur : un Web Worker, ou un objet équivalent dans la page
+  let ready = false;
+  let busy = false;
+  let turns = store.get("turns", []);
+  if (!Array.isArray(turns)) turns = [];
+  let current = null; // réponse en cours : { el, text }
+  let gpu = false;   // carte graphique utilisable par le navigateur (WebGPU)
+  const models = () => MODELS[gpu ? "gpu" : "cpu"];
+  const chosen = () => models().find((m) => m.id === $("model").value) || models()[0];
+
+  // --- Mini rendu Markdown (le texte est échappé avant toute mise en forme) --
+
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const inline = (s) => esc(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>");
+
+  function markdown(source) {
+    const out = [];
+    let list = null, para = [], code = null;
+    const endPara = () => { if (para.length) out.push("<p>" + para.join("<br>") + "</p>"); para = []; };
+    const endList = () => { if (list) out.push("</" + list + ">"); list = null; };
+    for (const line of source.split("\n")) {
+      if (line.trim().startsWith("```")) {
+        if (code === null) { endPara(); endList(); code = []; }
+        else { out.push("<pre><code>" + esc(code.join("\n")) + "</code></pre>"); code = null; }
+        continue;
+      }
+      if (code !== null) { code.push(line); continue; }
+      const h = line.match(/^(#{1,4})\s+(.*)$/);
+      const b = line.match(/^\s*[-*]\s+(.*)$/);
+      const n = line.match(/^\s*\d+[.)]\s+(.*)$/);
+      if (h) {
+        endPara(); endList();
+        const level = h[1].length <= 2 ? 2 : 3;
+        out.push(`<h${level}>${inline(h[2])}</h${level}>`);
+      } else if (b || n) {
+        endPara();
+        const type = b ? "ul" : "ol";
+        if (list !== type) { endList(); out.push("<" + type + ">"); list = type; }
+        out.push("<li>" + inline((b || n)[1]) + "</li>");
+      } else if (!line.trim()) { endPara(); endList(); }
+      else { endList(); para.push(inline(line.trim())); }
+    }
+    if (code !== null) out.push("<pre><code>" + esc(code.join("\n")) + "</code></pre>");
+    endPara(); endList();
+    return out.join("");
+  }
+
+  // --- Conversation ---------------------------------------------------------
+
+  const IDEAS = [
+    "Explique-moi simplement ce qu'est la photosynthèse",
+    "Donne-moi trois idées de repas rapides",
+    "C'est quoi la différence entre météo et climat ?",
+  ];
+
+  function bubble(role, text) {
+    const el = document.createElement("div");
+    el.className = "msg " + (role === "user" ? "user" : "alfred md");
+    if (role === "user") el.textContent = text;
+    else el.innerHTML = markdown(text);
+    $("chat").append(el);
+    return el;
+  }
+
+  function redraw() {
+    const chat = $("chat");
+    chat.textContent = "";
+    if (turns.length) {
+      for (const t of turns) bubble(t.role, t.content);
+      return;
+    }
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    const p = document.createElement("p");
+    p.textContent = "Pose une question simple. Par exemple :";
+    const ideas = document.createElement("div");
+    ideas.className = "ideas";
+    for (const idea of IDEAS) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = idea;
+      b.addEventListener("click", () => { $("input").value = idea; $("input").focus(); });
+      ideas.append(b);
+    }
+    empty.append(p, ideas);
+    chat.append(empty);
+  }
+
+  function systemPrompt() {
+    const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    // Consigne en anglais : les petits modèles la suivent mieux, et répondent quand même dans la langue de la question.
+    return `Your name is Alfred. You are a friendly personal assistant. Give short, clear and accurate answers. Reply in the language the user writes in. If you do not know the answer, say so. You have no internet access. Today is ${today} (mention the date only if asked).`;
+  }
+
+  function setBusy(value) {
+    busy = value;
+    $("send").disabled = !ready || busy;
+    $("stop").hidden = !busy;
+  }
+
+  function finish(note) {
+    if (!current) return;
+    const { el, text } = current;
+    current = null;
+    el.classList.remove("thinking");
+    if (text.trim()) {
+      el.innerHTML = markdown(text);
+      turns.push({ role: "assistant", content: text.trim() });
+    } else {
+      el.textContent = "";
+      if (!note) { el.remove(); turns.pop(); }
+    }
+    if (note) {
+      const p = document.createElement("p");
+      p.className = "alert";
+      p.textContent = note;
+      el.append(p);
+      if (!text.trim()) turns.pop();
+    }
+    store.set("turns", turns.slice(-40));
+    setBusy(false);
+  }
+
+  $("form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const question = $("input").value.trim();
+    if (!question || !ready || busy) return;
+    if (!turns.length) $("chat").textContent = "";
+    $("input").value = "";
+    turns.push({ role: "user", content: question });
+    bubble("user", question);
+    const el = bubble("assistant", "");
+    el.classList.add("thinking");
+    el.textContent = "Alfred réfléchit";
+    el.scrollIntoView({ block: "nearest" });
+    current = { el, text: "" };
+    setBusy(true);
+    // Un petit modèle a une mémoire courte : on n'envoie que les derniers échanges.
+    worker.postMessage({
+      type: "generate",
+      messages: [{ role: "system", content: systemPrompt() }, ...turns.slice(-8)],
+    });
+  });
+
+  $("input").addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+      event.preventDefault();
+      $("form").requestSubmit();
+    }
+  });
+
+  $("stop").addEventListener("click", () => worker?.postMessage({ type: "stop" }));
+
+  $("reset").addEventListener("click", () => {
+    if (busy) return;
+    turns = [];
+    store.set("turns", turns);
+    redraw();
+  });
+
+  // --- Moteur ---------------------------------------------------------------
+
+  async function detectGpu() {
+    try { gpu = Boolean(navigator.gpu && (await navigator.gpu.requestAdapter())); } catch { gpu = false; }
+  }
+
+  function show(view) {
+    $("setup").hidden = view !== "setup";
+    $("loading").hidden = view !== "loading";
+    $("status").hidden = view !== "ready";
+  }
+
+  function onMessage({ data }) {
+    if (data.type === "progress") {
+      const pct = Math.min(100, Math.round((data.loaded / data.total) * 100));
+      $("bar").style.width = pct + "%";
+      $("bar").parentElement.setAttribute("aria-valuenow", String(pct));
+      $("loading-note").textContent = `${Math.round(data.loaded / 1e6)} Mo sur ${Math.round(data.total / 1e6)} Mo. Garde cette page ouverte.`;
+    } else if (data.type === "ready") {
+      ready = true;
+      store.set("loaded", true);
+      $("status-text").textContent = `Modèle ${chosen().name} prêt, sur ${gpu ? "la carte graphique" : "le processeur (plus lent)"}.`;
+      show("ready");
+      setBusy(false);
+      $("input").focus();
+    } else if (data.type === "token") {
+      if (!current) return;
+      current.text += data.text;
+      current.el.classList.remove("thinking");
+      current.el.innerHTML = markdown(current.text);
+    } else if (data.type === "done") {
+      finish();
+    } else if (data.type === "error") {
+      console.error(data.message);
+      if (data.stage === "load") {
+        ready = false;
+        store.set("loaded", false);
+        const wasGpu = gpu;
+        if (wasGpu) { gpu = false; fillModels(); } // carte graphique refusée : on propose le modèle sur processeur
+        show("setup");
+        $("setup-note").className = "alert";
+        $("setup-note").textContent = wasGpu
+          ? "Le modèle n'a pas pu démarrer sur la carte graphique. Vérifie ta connexion et recharge la page, ou essaie le modèle de secours ci-dessus."
+          : "Le modèle n'a pas pu démarrer. Vérifie ta connexion, ou essaie un navigateur récent (Chrome, Edge) sur un ordinateur.";
+      } else {
+        finish("Alfred a rencontré une erreur. Repose ta question.");
+      }
+    }
+  }
+
+  async function start() {
+    const model = chosen();
+    store.set("model", model.id);
+    ready = false;
+    setBusy(false);
+    $("bar").style.width = "0";
+    $("loading-note").textContent = "Préparation. Garde cette page ouverte.";
+    show("loading");
+    worker?.terminate();
+    const request = { type: "load", model: model.id, device: gpu ? "webgpu" : "wasm", dtype: model.dtype };
+    const url = URL.createObjectURL(new Blob([$("engine").textContent], { type: "text/javascript" }));
+    let answered = false;
+    const thread = new Worker(url, { type: "module" });
+    thread.onmessage = (event) => { answered = true; onMessage(event); };
+    thread.onerror = async () => {
+      if (answered) return onMessage({ data: { type: "error", stage: busy ? "generate" : "load", message: "worker" } });
+      // Le fil séparé n'a pas démarré (page ouverte comme fichier) : moteur dans la page.
+      try {
+        const { createEngine } = await import(url);
+        const receive = createEngine((message) => onMessage({ data: message }));
+        worker = { postMessage: receive, terminate() {} };
+        receive(request);
+      } catch (error) {
+        onMessage({ data: { type: "error", stage: "load", message: String(error) } });
+      }
+    };
+    worker = thread;
+    worker.postMessage(request);
+  }
+
+  function describe() {
+    const model = chosen();
+    $("setup-note").className = "";
+    $("setup-note").textContent = `${model.note} Téléchargement unique d'environ ${model.size}.`;
+  }
+
+  function fillModels() {
+    const saved = store.get("model", null);
+    $("model").textContent = "";
+    for (const m of models()) $("model").add(new Option(`${m.name} (${m.size})`, m.id));
+    $("model").value = models().some((m) => m.id === saved) ? saved : models()[0].id;
+    describe();
+  }
+
+  (async () => {
+    await detectGpu();
+    fillModels();
+    $("model").addEventListener("change", describe);
+    $("start").addEventListener("click", start);
+    $("change").addEventListener("click", () => {
+      if (busy) return;
+      ready = false;
+      setBusy(false);
+      describe();
+      show("setup");
+    });
+    redraw();
+    // Si le modèle a déjà été téléchargé ici, on le relance tout seul (il vient du cache).
+    if (store.get("loaded", false) && models().some((m) => m.id === store.get("model", null))) start();
+  })();
+})();
+</script>
+</body>
+</html>
