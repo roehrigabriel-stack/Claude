@@ -2,6 +2,8 @@
 
 Site de révision avec IA : explications de cours, fiches de révision et quiz, propulsés par l'API Claude.
 
+> Cette version demande une clé API payante. La version gratuite est la page claude.ai dont le code est dans `artifact/alfred.html` : elle utilise le compte Claude de la personne qui l'ouvre et ajoute un onglet pour les questions de tous les jours.
+
 ## Comment ça marche
 
 ```

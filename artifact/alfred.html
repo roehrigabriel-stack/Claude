@@ -1,0 +1,688 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Alfred</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Mise en page : une colonne de cahier. En clair, papier et encre bleue d'écolier ;
+   en sombre, tableau noir et craie. La fiche s'écrit sur une réglure Seyès. */
+:root {
+  --paper: #f7f8fc;
+  --sheet: #ffffff;
+  --ink: #1a2142;
+  --muted: #5b6285;
+  --rule: #cfd4ee;
+  --rule-fine: #eceef9;
+  --pen: #2a3ec2;
+  --on-pen: #ffffff;
+  --margin: #d2413a;
+  --bubble: #e4e8fb;
+  --ok: #17734a;
+  --ok-bg: #dff3e8;
+  --ko-bg: #fbe3e1;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --body: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --line: 28px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #121917; --sheet: #1a2420; --ink: #e9eee8; --muted: #96a59c;
+    --rule: #33443c; --rule-fine: #212d28; --pen: #f1d468; --on-pen: #17170f;
+    --margin: #ff8f85; --bubble: #263530; --ok: #7fd9a8; --ok-bg: #1d3a2c; --ko-bg: #43241f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #121917; --sheet: #1a2420; --ink: #e9eee8; --muted: #96a59c;
+  --rule: #33443c; --rule-fine: #212d28; --pen: #f1d468; --on-pen: #17170f;
+  --margin: #ff8f85; --bubble: #263530; --ok: #7fd9a8; --ok-bg: #1d3a2c; --ko-bg: #43241f;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.55 var(--body);
+}
+.wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding-block: 20px 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+h1 { margin: 0; font: 700 1.9rem/1.1 var(--display); letter-spacing: -0.01em; }
+h1 span { color: var(--pen); }
+header p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+
+.tabs { display: flex; gap: 2px; border-bottom: 2px solid var(--rule); }
+.tabs button {
+  flex: 0 1 auto;
+  padding: 9px 13px;
+  margin-bottom: -2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font: 500 1rem var(--display);
+}
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--pen); }
+
+button {
+  padding: 9px 16px;
+  border: 1.5px solid var(--pen);
+  border-radius: 8px;
+  background: var(--pen);
+  color: var(--on-pen);
+  font: 600 0.95rem var(--body);
+  cursor: pointer;
+}
+button:disabled { opacity: 0.5; cursor: default; }
+button.quiet { background: transparent; color: var(--pen); border-color: var(--rule); }
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--pen);
+  outline-offset: 2px;
+}
+
+label { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; font-weight: 600; color: var(--muted); min-width: 0; }
+label small { font-weight: 400; }
+select, input, textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1.5px solid var(--rule);
+  border-radius: 8px;
+  background: var(--sheet);
+  color: var(--ink);
+  font: 400 1rem var(--body);
+}
+textarea { resize: vertical; }
+
+.panel { display: flex; flex-direction: column; gap: 14px; }
+.study { display: flex; gap: 12px; }
+.study label { flex: 1; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; align-items: center; }
+.note { margin: 0; color: var(--muted); font-size: 0.9rem; }
+.note.alert { color: var(--margin); font-weight: 600; }
+
+.chat { display: flex; flex-direction: column; gap: 12px; min-height: 180px; }
+.empty { display: flex; flex-direction: column; gap: 10px; color: var(--muted); }
+.empty p { margin: 0; }
+.ideas { display: flex; flex-wrap: wrap; gap: 8px; }
+.ideas button { background: var(--sheet); color: var(--ink); border-color: var(--rule); font-weight: 400; text-align: left; }
+.msg { min-width: 0; overflow-wrap: anywhere; }
+.msg.user { align-self: flex-end; max-width: 85%; padding: 9px 14px; border-radius: 14px 14px 3px 14px; background: var(--bubble); white-space: pre-wrap; }
+.msg.alfred { padding-left: 14px; border-left: 2px solid var(--margin); }
+.thinking { color: var(--muted); }
+.thinking::after { content: "..."; animation: dots 1.2s infinite; }
+@keyframes dots { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .thinking::after { animation: none; } }
+
+.composer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-block: 10px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: var(--paper);
+}
+
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+.md h2 { font: 700 1.15rem/1.3 var(--display); margin: 1.1em 0 0.35em; text-wrap: balance; }
+.md h3 { font: 500 1.02rem/1.3 var(--display); margin: 1em 0 0.3em; }
+.md p { margin: 0.5em 0; }
+.md ul, .md ol { margin: 0.4em 0; padding-left: 1.3em; }
+.md code { font-size: 0.92em; background: var(--rule-fine); padding: 1px 5px; border-radius: 4px; }
+.md pre { background: var(--rule-fine); padding: 10px; border-radius: 8px; overflow-x: auto; }
+.md pre code { padding: 0; background: none; }
+
+/* Fiche : feuille à réglure Seyès, marge rouge, texte calé sur les lignes. */
+.sheet {
+  padding: var(--line) 18px var(--line) 56px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background-color: var(--sheet);
+  background-image:
+    linear-gradient(90deg, transparent 43px, var(--margin) 43px, var(--margin) 44px, transparent 44px),
+    linear-gradient(var(--rule) 1px, transparent 1px),
+    linear-gradient(var(--rule-fine) 1px, transparent 1px);
+  background-size: 100% 100%, 100% var(--line), 100% calc(var(--line) / 4);
+  background-position: 0 0, 0 21px, 0 21px;
+  line-height: var(--line);
+  overflow-wrap: anywhere;
+}
+.sheet.md h2, .sheet.md h3 { line-height: var(--line); margin: var(--line) 0 0; }
+.sheet.md h2 { color: var(--pen); }
+.sheet.md p, .sheet.md ul, .sheet.md ol { margin: 0; }
+.sheet.md p + p { margin-top: var(--line); }
+
+.question { display: flex; flex-direction: column; gap: 8px; }
+.question h3 { margin: 0; font: 500 1.02rem/1.35 var(--display); }
+.choice { text-align: left; background: var(--sheet); color: var(--ink); border-color: var(--rule); font-weight: 400; }
+.choice:disabled { opacity: 1; }
+.choice.right { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); font-weight: 600; }
+.choice.wrong { background: var(--ko-bg); border-color: var(--margin); color: var(--margin); }
+.why { margin: 0; color: var(--muted); font-size: 0.93rem; }
+.quiz { display: flex; flex-direction: column; gap: 22px; }
+.score { margin: 0; font: 700 1.3rem var(--display); font-variant-numeric: tabular-nums; }
+.score span { color: var(--pen); }
+
+footer { padding-block: 8px 20px; color: var(--muted); font-size: 0.8rem; }
+footer p { margin: 0; }
+
+@media (max-width: 460px) {
+  .tabs button { padding: 9px 9px; font-size: 0.95rem; }
+  .study { flex-direction: column; }
+  .sheet { padding-left: 44px; background-image:
+    linear-gradient(90deg, transparent 31px, var(--margin) 31px, var(--margin) 32px, transparent 32px),
+    linear-gradient(var(--rule) 1px, transparent 1px),
+    linear-gradient(var(--rule-fine) 1px, transparent 1px); }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Alfred<span>.</span></h1>
+    <p>Pose une question, révise un cours, teste-toi.</p>
+  </header>
+
+  <p id="absent" class="note alert" hidden>Alfred ne peut pas répondre ici. Ouvre cette page dans claude.ai en étant connecté à ton compte.</p>
+
+  <nav class="tabs" role="tablist" aria-label="Modes">
+    <button role="tab" id="tab-questions" data-tab="questions" aria-selected="true">Questions</button>
+    <button role="tab" id="tab-cours" data-tab="cours" aria-selected="false">Cours</button>
+    <button role="tab" id="tab-fiche" data-tab="fiche" aria-selected="false">Fiche</button>
+    <button role="tab" id="tab-quiz" data-tab="quiz" aria-selected="false">Quiz</button>
+  </nav>
+
+  <div id="study" class="study" hidden>
+    <label for="subject">Matière
+      <select id="subject">
+        <option>Français</option><option>Mathématiques</option><option>Histoire-Géographie</option>
+        <option>Physique-Chimie</option><option>SVT</option><option>SES</option>
+        <option>Anglais</option><option>Espagnol</option><option>Autre</option>
+      </select>
+    </label>
+    <label for="level">Classe
+      <select id="level"><option>Seconde</option><option>Première</option><option>Terminale</option></select>
+    </label>
+  </div>
+
+  <section id="questions" class="panel" data-chat="questions">
+    <div class="chat" aria-live="polite"></div>
+    <form class="composer">
+      <textarea id="questions-input" rows="2" maxlength="8000" placeholder="Demande ce que tu veux..." aria-label="Ta question" required></textarea>
+      <div class="actions">
+        <button type="button" class="quiet" data-reset id="questions-reset">Nouvelle conversation</button>
+        <button type="button" class="quiet" data-stop id="questions-stop" hidden>Arrêter</button>
+        <button type="submit" id="questions-send">Envoyer</button>
+      </div>
+    </form>
+  </section>
+
+  <section id="cours" class="panel" data-chat="cours" hidden>
+    <div class="chat" aria-live="polite"></div>
+    <form class="composer">
+      <textarea id="cours-input" rows="2" maxlength="8000" placeholder="Ta question sur le cours..." aria-label="Ta question sur le cours" required></textarea>
+      <div class="actions">
+        <button type="button" class="quiet" data-reset id="cours-reset">Nouvelle conversation</button>
+        <button type="button" class="quiet" data-stop id="cours-stop" hidden>Arrêter</button>
+        <button type="submit" id="cours-send">Envoyer</button>
+      </div>
+    </form>
+  </section>
+
+  <section id="fiche" class="panel" hidden>
+    <form id="fiche-form" class="stack">
+      <label for="fiche-topic">Sujet de la fiche
+        <input id="fiche-topic" type="text" maxlength="300" required placeholder="Le romantisme, les fonctions affines, la guerre froide...">
+      </label>
+      <label for="fiche-notes">Tes notes de cours <small>(optionnel, la fiche s'appuiera dessus)</small>
+        <textarea id="fiche-notes" rows="4" maxlength="12000" placeholder="Colle ici tes notes..."></textarea>
+      </label>
+      <div class="actions">
+        <button type="button" class="quiet" id="fiche-copy" hidden>Copier</button>
+        <button type="button" class="quiet" data-stop id="fiche-stop" hidden>Arrêter</button>
+        <button type="submit" id="fiche-send">Créer la fiche</button>
+      </div>
+    </form>
+    <p id="fiche-note" class="note" hidden></p>
+    <article id="fiche-out" class="sheet md" aria-live="polite" hidden></article>
+  </section>
+
+  <section id="quiz" class="panel" hidden>
+    <form id="quiz-form" class="stack">
+      <label for="quiz-topic">Sujet du quiz
+        <input id="quiz-topic" type="text" maxlength="300" required placeholder="Les figures de style, le théorème de Pythagore...">
+      </label>
+      <label for="quiz-count">Nombre de questions
+        <select id="quiz-count"><option>3</option><option selected>5</option><option>8</option><option>10</option></select>
+      </label>
+      <div class="actions">
+        <button type="button" class="quiet" data-stop id="quiz-stop" hidden>Arrêter</button>
+        <button type="submit" id="quiz-send">Lancer le quiz</button>
+      </div>
+    </form>
+    <p id="quiz-note" class="note" hidden></p>
+    <div id="quiz-out" class="quiz" aria-live="polite"></div>
+  </section>
+
+  <footer>
+    <p>Alfred s'appuie sur Claude et peut se tromper. Il n'a pas accès à Internet : pas de météo, d'actualités ni de résultats du jour. Chaque réponse compte dans l'usage de ton compte Claude.</p>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const samplePromise = window.claude?.use
+    ? window.claude.use("sample").catch(() => null)
+    : Promise.resolve(null);
+  samplePromise.then((sample) => { if (!sample) hideAlfred(); });
+
+  function hideAlfred() {
+    $("absent").hidden = false;
+    document.querySelectorAll('button[type="submit"]').forEach((b) => (b.disabled = true));
+  }
+
+  const store = {
+    get(key, fallback) {
+      try { return JSON.parse(localStorage.getItem("alfred." + key)) ?? fallback; } catch { return fallback; }
+    },
+    set(key, value) {
+      try { localStorage.setItem("alfred." + key, JSON.stringify(value)); } catch {}
+    },
+  };
+
+  // --- Consignes données à Claude ------------------------------------------
+
+  const STYLE = `Règles de forme : réponds en français sauf si on te parle dans une autre langue ou qu'on te demande une autre langue. Tutoie. Aucun emoji. Pas de tirets longs. Markdown simple uniquement (titres ## et ###, listes, gras), pas de tableaux, pas de LaTeX : écris les formules en texte clair.`;
+
+  function rulesFor(mode) {
+    if (mode === "questions") {
+      const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+      return `Tu es Alfred, l'assistant personnel de la personne qui t'écrit. Tu réponds à ses questions de tous les jours : conseils pratiques, explications, rédaction de messages, idées, organisation, culture générale, code, etc.
+Sois direct et naturel, sans phrases d'introduction creuses. Une question simple mérite une réponse courte. Sois honnête : si tu n'es pas sûr, dis-le. Tu n'as pas accès à Internet ni à des informations en temps réel (météo, actualités, scores, prix) : dis-le simplement quand c'est le cas au lieu d'inventer.
+Nous sommes le ${today}.
+${STYLE}`;
+    }
+    const header = `Matière : ${$("subject").value}. Classe : ${$("level").value}.`;
+    const base = `Tu es Alfred, l'assistant de révision d'un lycéen en filière française (programme de l'Éducation nationale). ${header}
+Sois exact : si tu n'es pas sûr d'un fait (date, citation, formule), dis-le plutôt que d'inventer. Ne fabrique jamais de citation d'auteur. Adapte le niveau à la classe. Si la matière est une langue vivante, donne les exemples dans cette langue et les explications en français.
+${STYLE}`;
+    if (mode === "cours") {
+      return `${base}
+L'élève pose des questions sur son cours. Explique clairement, avec un exemple concret quand c'est utile, et va droit au but. Ne fais pas ses devoirs à sa place : pour un exercice ou une rédaction, guide-le par étapes et laisse-le produire le résultat.`;
+    }
+    if (mode === "fiche") {
+      return `${base}
+Rédige une fiche de révision synthétique, à relire la veille d'un contrôle, avec exactement ces parties :
+## L'essentiel (3 à 5 phrases)
+## Notions clés (définitions courtes)
+## À retenir (dates, formules, auteurs ou méthodes selon la matière)
+## Erreurs fréquentes
+## Pour vérifier que tu as compris (3 questions, sans les réponses)
+Reste dense : une fiche, pas un cours. Commence directement par le premier titre.`;
+    }
+    return `${base}
+Écris un quiz à choix multiples. Chaque question a exactement quatre propositions, une seule correcte, et des mauvaises réponses plausibles (les erreurs que ferait un élève). Varie la position de la bonne réponse. L'explication dit en une ou deux phrases pourquoi la bonne réponse est juste. Texte brut dans les champs, sans Markdown.
+Réponds uniquement avec un objet JSON de cette forme :
+{"questions":[{"question":"...","choices":["...","...","...","..."],"answer":0,"explanation":"..."}]}
+où "answer" est l'indice (0 à 3) de la bonne proposition.`;
+  }
+
+  const ERRORS = {
+    absent: "Alfred n'est pas disponible ici. Ouvre la page dans claude.ai en étant connecté.",
+    not_granted: "Tu n'as pas autorisé cette page à utiliser Claude. Recharge la page pour qu'elle te le redemande.",
+    sampling_disabled: "Claude n'est pas disponible pour ce compte.",
+    rate_limited: "Limite d'usage atteinte pour l'instant. Réessaie un peu plus tard.",
+    session_expired: "Ta session a expiré. Reconnecte-toi à claude.ai puis recharge la page.",
+    refused: "Alfred ne peut pas répondre à cette demande. Reformule-la.",
+    empty_completion: "Alfred n'a rien répondu. Reformule ou demande moins à la fois.",
+    invalid_json: "Le quiz est arrivé dans un format illisible. Relance-le.",
+    prompt_too_large: "C'est trop long pour Alfred. Raccourcis le texte ou commence une nouvelle conversation.",
+  };
+  const HIDE = new Set(["absent", "not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"]);
+  const errorText = (e) => ERRORS[e?.code] || "Problème de connexion avec Claude. Réessaie.";
+
+  // Lance une demande et gère l'état des boutons (Envoyer / Arrêter).
+  async function ask(panel, run) {
+    const send = panel.querySelector('button[type="submit"]');
+    const stop = panel.querySelector("[data-stop]");
+    const controller = new AbortController();
+    const onStop = () => controller.abort();
+    send.disabled = true;
+    stop.hidden = false;
+    stop.addEventListener("click", onStop);
+    try {
+      const sample = await samplePromise;
+      if (!sample) throw { code: "absent" };
+      return await run(sample, controller.signal);
+    } catch (e) {
+      if (HIDE.has(e?.code)) hideAlfred();
+      throw e;
+    } finally {
+      stop.removeEventListener("click", onStop);
+      stop.hidden = true;
+      if ($("absent").hidden) send.disabled = false;
+    }
+  }
+
+  // --- Mini rendu Markdown (le texte est échappé avant toute mise en forme) --
+
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const inline = (s) => esc(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>");
+
+  function markdown(source) {
+    const out = [];
+    let list = null, para = [], code = null;
+    const endPara = () => { if (para.length) out.push("<p>" + para.join("<br>") + "</p>"); para = []; };
+    const endList = () => { if (list) out.push("</" + list + ">"); list = null; };
+    for (const line of source.split("\n")) {
+      if (line.trim().startsWith("```")) {
+        if (code === null) { endPara(); endList(); code = []; }
+        else { out.push("<pre><code>" + esc(code.join("\n")) + "</code></pre>"); code = null; }
+        continue;
+      }
+      if (code !== null) { code.push(line); continue; }
+      const h = line.match(/^(#{1,4})\s+(.*)$/);
+      const b = line.match(/^\s*[-*]\s+(.*)$/);
+      const n = line.match(/^\s*\d+[.)]\s+(.*)$/);
+      if (h) {
+        endPara(); endList();
+        const level = h[1].length <= 2 ? 2 : 3;
+        out.push(`<h${level}>${inline(h[2])}</h${level}>`);
+      } else if (b || n) {
+        endPara();
+        const type = b ? "ul" : "ol";
+        if (list !== type) { endList(); out.push("<" + type + ">"); list = type; }
+        out.push("<li>" + inline((b || n)[1]) + "</li>");
+      } else if (!line.trim()) { endPara(); endList(); }
+      else { endList(); para.push(inline(line.trim())); }
+    }
+    if (code !== null) out.push("<pre><code>" + esc(code.join("\n")) + "</code></pre>");
+    endPara(); endList();
+    return out.join("");
+  }
+
+  // --- Onglets --------------------------------------------------------------
+
+  const tabs = [...document.querySelectorAll(".tabs button")];
+  function showTab(name) {
+    if (!tabs.some((t) => t.dataset.tab === name)) name = "questions";
+    tabs.forEach((t) => t.setAttribute("aria-selected", String(t.dataset.tab === name)));
+    document.querySelectorAll(".panel").forEach((p) => (p.hidden = p.id !== name));
+    $("study").hidden = name === "questions";
+    store.set("tab", name);
+  }
+  tabs.forEach((t) => t.addEventListener("click", () => showTab(t.dataset.tab)));
+
+  for (const id of ["subject", "level"]) {
+    const saved = store.get(id, null);
+    if (saved && [...$(id).options].some((o) => o.value === saved)) $(id).value = saved;
+    $(id).addEventListener("change", () => store.set(id, $(id).value));
+  }
+
+  // --- Conversations (Questions et Cours) -----------------------------------
+
+  const IDEAS = {
+    questions: {
+      text: "Demande-moi ce que tu veux. Par exemple :",
+      list: [
+        "Aide-moi à écrire un mail poli à un prof pour rendre un devoir en retard",
+        "Explique-moi simplement comment marche un taux d'intérêt",
+        "Une idée de repas rapide avec des oeufs et du riz",
+      ],
+    },
+    cours: {
+      text: "Choisis ta matière au-dessus, puis pose une question sur ton cours. Par exemple :",
+      list: [
+        "Quelle est la différence entre une métaphore et une comparaison ?",
+        "Comment trouver l'équation d'une droite à partir de deux points ?",
+      ],
+    },
+  };
+
+  document.querySelectorAll("[data-chat]").forEach((panel) => {
+    const mode = panel.dataset.chat;
+    const chat = panel.querySelector(".chat");
+    const form = panel.querySelector("form");
+    const input = panel.querySelector("textarea");
+    let turns = store.get("turns." + mode, []);
+    if (!Array.isArray(turns)) turns = [];
+
+    function bubble(role, text) {
+      const el = document.createElement("div");
+      el.className = "msg " + (role === "user" ? "user" : "alfred md");
+      if (role === "user") el.textContent = text;
+      else el.innerHTML = markdown(text);
+      chat.append(el);
+      return el;
+    }
+
+    function redraw() {
+      chat.textContent = "";
+      if (!turns.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        const p = document.createElement("p");
+        p.textContent = IDEAS[mode].text;
+        const ideas = document.createElement("div");
+        ideas.className = "ideas";
+        for (const idea of IDEAS[mode].list) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.textContent = idea;
+          b.addEventListener("click", () => { input.value = idea; input.focus(); });
+          ideas.append(b);
+        }
+        empty.append(p, ideas);
+        chat.append(empty);
+        return;
+      }
+      for (const t of turns) bubble(t.role, t.content);
+    }
+    redraw();
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const question = input.value.trim();
+      if (!question || panel.querySelector('button[type="submit"]').disabled) return;
+      if (!turns.length) chat.textContent = "";
+      input.value = "";
+      turns.push({ role: "user", content: question });
+      bubble("user", question);
+      const reply = bubble("assistant", "");
+      reply.classList.add("thinking");
+      reply.textContent = "Alfred réfléchit";
+      reply.scrollIntoView({ block: "nearest" });
+
+      const show = (text) => { reply.classList.remove("thinking"); reply.innerHTML = markdown(text); };
+      const note = (text) => {
+        const p = document.createElement("p");
+        p.className = "note alert";
+        p.textContent = text;
+        reply.append(p);
+      };
+      try {
+        const { text, truncated } = await ask(panel, (sample, signal) =>
+          sample([{ role: "user", content: rulesFor(mode) }, ...turns.slice(-30)], {
+            cache: false,
+            signal,
+            onText: ({ text }) => show(text),
+          }),
+        );
+        show(text);
+        if (truncated) note("Réponse coupée. Demande la suite.");
+        turns.push({ role: "assistant", content: text });
+      } catch (e) {
+        const partial = e?.code === "refused" ? "" : e?.text || "";
+        if (partial) {
+          show(partial);
+          turns.push({ role: "assistant", content: partial });
+          if (e.code !== "cancelled") note(errorText(e));
+        } else {
+          turns.pop();
+          reply.classList.remove("thinking");
+          reply.textContent = "";
+          if (e?.code === "cancelled") { reply.remove(); input.value = question; }
+          else note(errorText(e));
+          if (!turns.length && e?.code === "cancelled") redraw();
+        }
+      }
+      store.set("turns." + mode, turns.slice(-40));
+    });
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
+    panel.querySelector("[data-reset]").addEventListener("click", () => {
+      if (!panel.querySelector("[data-stop]").hidden) return;
+      turns = [];
+      store.set("turns." + mode, turns);
+      redraw();
+    });
+  });
+
+  // --- Fiche ----------------------------------------------------------------
+
+  let ficheText = "";
+  $("fiche-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const out = $("fiche-out");
+    const note = $("fiche-note");
+    const topic = $("fiche-topic").value.trim();
+    const notes = $("fiche-notes").value.trim();
+    if (!topic) return;
+    $("fiche-copy").hidden = true;
+    out.hidden = true;
+    note.hidden = false;
+    note.className = "note thinking";
+    note.textContent = "Alfred rédige la fiche";
+
+    let prompt = `${rulesFor("fiche")}\n\nSujet de la fiche : ${topic}`;
+    if (notes) prompt += `\n\nVoici mes notes de cours. Appuie-toi dessus en priorité, et signale les erreurs que tu corriges :\n<notes>\n${notes}\n</notes>`;
+    const show = (text) => { note.hidden = true; out.hidden = false; out.innerHTML = markdown(text); ficheText = text; };
+    const warn = (text) => { note.hidden = false; note.className = "note alert"; note.textContent = text; };
+    try {
+      const { text, truncated } = await ask($("fiche"), (sample, signal) =>
+        sample(prompt, { signal, onText: ({ text }) => show(text) }),
+      );
+      show(text);
+      if (truncated) warn("Fiche coupée avant la fin. Choisis un sujet plus précis.");
+      $("fiche-copy").hidden = false;
+    } catch (e) {
+      const partial = e?.code === "refused" ? "" : e?.text || "";
+      if (partial) { show(partial); $("fiche-copy").hidden = false; } else out.hidden = true;
+      if (e?.code === "cancelled") note.hidden = true;
+      else warn(errorText(e));
+    }
+  });
+
+  $("fiche-copy").addEventListener("click", async () => {
+    const button = $("fiche-copy");
+    try {
+      await navigator.clipboard.writeText(ficheText);
+      button.textContent = "Copié";
+    } catch {
+      const range = document.createRange();
+      range.selectNodeContents($("fiche-out"));
+      const selection = getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      button.textContent = "Texte sélectionné";
+    }
+    setTimeout(() => (button.textContent = "Copier"), 1800);
+  });
+
+  // --- Quiz -----------------------------------------------------------------
+
+  function drawQuiz(questions) {
+    const out = $("quiz-out");
+    out.textContent = "";
+    let answered = 0, right = 0;
+    const score = document.createElement("p");
+    score.className = "score";
+    score.hidden = true;
+
+    questions.forEach((q, i) => {
+      const block = document.createElement("div");
+      block.className = "question";
+      const title = document.createElement("h3");
+      title.textContent = `${i + 1}. ${q.question}`;
+      const why = document.createElement("p");
+      why.className = "why";
+      why.hidden = true;
+      why.textContent = q.explanation;
+      const buttons = q.choices.map((choice, c) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "choice";
+        b.textContent = choice;
+        b.addEventListener("click", () => {
+          buttons.forEach((x) => (x.disabled = true));
+          buttons[q.answer].classList.add("right");
+          if (c === q.answer) right += 1; else b.classList.add("wrong");
+          why.hidden = false;
+          answered += 1;
+          if (answered === questions.length) {
+            score.innerHTML = `Score : <span>${right}</span> / ${questions.length}`;
+            score.hidden = false;
+            score.scrollIntoView({ block: "nearest" });
+          }
+        });
+        return b;
+      });
+      block.append(title, ...buttons, why);
+      out.append(block);
+    });
+    out.append(score);
+  }
+
+  $("quiz-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const note = $("quiz-note");
+    const topic = $("quiz-topic").value.trim();
+    if (!topic) return;
+    $("quiz-out").textContent = "";
+    note.hidden = false;
+    note.className = "note thinking";
+    note.textContent = "Alfred prépare le quiz";
+    const prompt = `${rulesFor("quiz")}\n\nSujet du quiz : ${topic}\nNombre de questions : ${$("quiz-count").value}`;
+    try {
+      const data = await ask($("quiz"), (sample, signal) => sample.json(prompt, { cache: false, signal }));
+      const questions = (Array.isArray(data?.questions) ? data.questions : [])
+        .map((q) => ({
+          question: String(q?.question ?? ""),
+          choices: Array.isArray(q?.choices) ? q.choices.map(String) : [],
+          answer: Number(q?.answer),
+          explanation: String(q?.explanation ?? ""),
+        }))
+        .filter((q) => q.question && q.choices.length === 4 && Number.isInteger(q.answer) && q.answer >= 0 && q.answer < 4);
+      if (!questions.length) throw { code: "invalid_json" };
+      note.hidden = true;
+      drawQuiz(questions);
+    } catch (e) {
+      if (e?.code === "cancelled") { note.hidden = true; return; }
+      note.className = "note alert";
+      note.textContent = errorText(e);
+    }
+  });
+
+  showTab(store.get("tab", "questions"));
+})();
+</script>
