@@ -1,32 +1,52 @@
 # Alfred local
 
-Une IA qui tourne entièrement sur ton appareil, dans le navigateur. Pas de Claude, pas de serveur, pas de clé API, rien à payer.
+Une IA qui tourne entièrement sur ton appareil, dans le navigateur, et qui peut chercher sur Internet. Pas de Claude, pas de serveur, pas de clé API, rien à payer.
 
 Tout tient dans un seul fichier : `index.html`.
 
 ## L'utiliser
 
-Le plus simple : télécharge `index.html` et ouvre-le par double-clic dans Chrome ou Edge. Clique sur "Télécharger et démarrer", attends la fin du téléchargement du modèle, puis pose ta question.
+Télécharge `index.html` et ouvre-le par double-clic dans Chrome ou Edge. Choisis un modèle, attends la fin du téléchargement, puis pose ta question.
 
-- Le modèle (300 à 850 Mo) se télécharge une fois, puis reste dans le navigateur.
-- Il faut une connexion Internet au démarrage (pour charger la bibliothèque et, la première fois, le modèle). Les questions et les réponses, elles, ne quittent jamais l'appareil.
-- Sur un ordinateur récent, Alfred utilise la carte graphique et répond vite. Sans carte graphique accessible, il passe sur un modèle de secours, lent et moins bon.
+- Le modèle se télécharge une fois, puis reste dans le navigateur.
+- Il faut une connexion Internet au démarrage (pour charger la bibliothèque et, la première fois, le modèle).
+- Sur un ordinateur récent, Alfred utilise la carte graphique. Sans carte graphique accessible, il passe sur un modèle de secours, lent et bien moins bon.
+
+## Ce qu'il sait faire
+
+- **Trois tailles de modèle** : Standard (850 Mo), Avancé (1,9 Go, il réfléchit avant de répondre), Léger (300 Mo).
+- **Internet** (bouton dans la zone de saisie) : Alfred cherche sur le web, lit les deux premières pages, répond et cite ses sources. La météo vient en direct d'Open-Meteo.
+- **Calcul exact** : les opérations sont faites par une vraie calculatrice, pas par le modèle.
+- **Plusieurs conversations**, gardées dans le navigateur, avec le bouton pour refaire ou copier une réponse.
+- **Réglages** : ton prénom, ta ville pour la météo, des consignes permanentes.
 
 ## Comment ça marche
 
 ```
 index.html
- ├─ la page (HTML, CSS, JavaScript)
- └─ le moteur : Transformers.js fait tourner un petit modèle de langage libre
-    directement dans le navigateur (WebGPU pour la carte graphique, WebAssembly sinon)
+ ├─ l'interface (HTML, CSS, JavaScript, sans framework)
+ ├─ le moteur : Transformers.js fait tourner un modèle de langage libre dans le
+ │  navigateur (WebGPU pour la carte graphique, WebAssembly sinon)
+ └─ Internet : avant de répondre, la page va chercher des informations
+    et les glisse dans la question posée au modèle
+       ├─ recherche web : DuckDuckGo, lu à travers le service Jina Reader
+       ├─ lecture de pages : Jina Reader
+       ├─ secours : Wikipédia
+       └─ météo : Open-Meteo
 ```
 
-- Modèles : LFM2 de Liquid AI (1,2 milliard ou 350 millions de paramètres) avec carte graphique, Qwen 2.5 d'Alibaba (500 millions) sur processeur. Ils sont téléchargés depuis Hugging Face.
-- La liste des modèles est dans `MODELS`, et la consigne donnée à l'IA dans `systemPrompt()`, dans `index.html`.
+- Modèles : LFM2.5 de Liquid AI avec carte graphique, Qwen 2.5 d'Alibaba sur processeur, téléchargés depuis Hugging Face.
+- Dans `index.html` : la liste des modèles est dans `MODELS`, la consigne donnée à l'IA dans `systemPrompt()`, et toute la partie Internet dans `gather()`.
+
+## Vie privée
+
+Sans Internet, rien ne quitte ton appareil. Quand Internet est activé, ta question (ou la recherche qu'Alfred en tire) part vers DuckDuckGo via Jina, Wikipédia ou Open-Meteo. Les conversations sont stockées dans le navigateur, nulle part ailleurs.
 
 ## Ses limites
 
-C'est un petit modèle, des centaines de fois plus petit que Claude. Il répond correctement aux questions simples, mais il se trompe parfois avec assurance, il calcule mal, et il oublie le début des longues conversations. Il n'a pas accès à Internet.
+- Ce sont de petits modèles, bien plus petits que Claude. Ils se trompent parfois avec assurance, même avec des sources sous les yeux : vérifie ce qui compte.
+- La recherche passe par des services gratuits sans clé. Ils peuvent ralentir, limiter le nombre de demandes ou changer. Dans ce cas Alfred répond sans Internet ou se rabat sur Wikipédia.
+- Le modèle Avancé pèse 1,9 Go et demande une bonne carte graphique.
 
 ## Le mettre en ligne gratuitement
 
