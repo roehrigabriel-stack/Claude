@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alfred Révision</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">A</span>
+      <div>
+        <h1>Alfred Révision</h1>
+        <p>Comprendre, résumer, se tester.</p>
+      </div>
+    </div>
+    <div class="context">
+      <label>Matière
+        <select id="subject"></select>
+      </label>
+      <label>Classe
+        <select id="level"></select>
+      </label>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="explain" aria-selected="true">Explication</button>
+    <button role="tab" data-tab="sheet" aria-selected="false">Fiche</button>
+    <button role="tab" data-tab="quiz" aria-selected="false">Quiz</button>
+  </nav>
+
+  <main>
+    <section id="explain" class="panel">
+      <div id="chat" class="chat" aria-live="polite">
+        <p class="hint">Pose une question sur ton cours. Exemple : « Quelle est la différence entre une métaphore et une comparaison ? »</p>
+      </div>
+      <form id="explain-form" class="composer">
+        <textarea id="question" rows="2" placeholder="Ta question..." required maxlength="6000"></textarea>
+        <div class="row">
+          <button type="button" id="reset-chat" class="ghost">Nouvelle conversation</button>
+          <button type="submit">Envoyer</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="sheet" class="panel" hidden>
+      <form id="sheet-form" class="stack">
+        <label>Sujet de la fiche
+          <input id="sheet-topic" type="text" placeholder="Ex. : Le romantisme, les fonctions affines, la guerre froide" required maxlength="300">
+        </label>
+        <label>Tes notes de cours <span class="soft">(optionnel, la fiche s'appuiera dessus)</span>
+          <textarea id="sheet-notes" rows="5" maxlength="12000" placeholder="Colle ici tes notes..."></textarea>
+        </label>
+        <div class="row">
+          <button type="button" id="copy-sheet" class="ghost" hidden>Copier</button>
+          <button type="button" id="print-sheet" class="ghost" hidden>Imprimer</button>
+          <button type="submit">Créer la fiche</button>
+        </div>
+      </form>
+      <article id="sheet-output" class="output md" aria-live="polite"></article>
+    </section>
+
+    <section id="quiz" class="panel" hidden>
+      <form id="quiz-form" class="stack">
+        <label>Sujet du quiz
+          <input id="quiz-topic" type="text" placeholder="Ex. : Les figures de style, le théorème de Pythagore" required maxlength="300">
+        </label>
+        <label>Nombre de questions
+          <select id="quiz-count">
+            <option>3</option>
+            <option selected>5</option>
+            <option>8</option>
+            <option>10</option>
+          </select>
+        </label>
+        <div class="row">
+          <button type="submit">Lancer le quiz</button>
+        </div>
+      </form>
+      <div id="quiz-output" class="output" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Les réponses sont générées par une IA et peuvent contenir des erreurs. Vérifie avec ton cours.</p>
+  </footer>
+
+  <dialog id="password-dialog">
+    <form method="dialog" class="stack">
+      <h2>Mot de passe</h2>
+      <p class="soft">Ce site est protégé.</p>
+      <input id="password-input" type="password" autocomplete="current-password" required>
+      <button type="submit">Entrer</button>
+    </form>
+  </dialog>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
