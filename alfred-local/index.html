@@ -325,76 +325,6 @@ dialog::backdrop { background: rgba(6, 8, 12, 0.6); backdrop-filter: blur(4px); 
   </form>
 </dialog>
 
-<!-- Le moteur : ce code tourne dans un fil séparé (Web Worker) pour ne pas figer la page.
-     Si la page est ouverte comme simple fichier, le navigateur refuse ce fil : le moteur tourne alors dans la page. -->
-<script id="engine" type="text/plain">
-import { pipeline, TextStreamer, InterruptableStoppingCriteria } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2";
-
-// Le moteur reçoit des messages (load, generate, stop) et répond avec send().
-export function createEngine(send) {
-  let generator = null;
-  const stopper = new InterruptableStoppingCriteria();
-
-  async function load(model, device, dtype) {
-    const files = new Map();
-    const progress = (p) => {
-      if (p.status !== "progress" || !p.total) return;
-      files.set(p.file, [p.loaded, p.total]);
-      let loaded = 0, total = 0;
-      for (const [l, t] of files.values()) { loaded += l; total += t; }
-      send({ type: "progress", loaded, total });
-    };
-    return pipeline("text-generation", model, { device, dtype, progress_callback: progress });
-  }
-
-  async function receive(data) {
-    if (data.type === "stop") { stopper.interrupt(); return; }
-
-    if (data.type === "load") {
-      generator = null;
-      try {
-        generator = await load(data.model, data.device, data.dtype);
-        send({ type: "ready" });
-      } catch (error) {
-        send({ type: "error", stage: "load", message: String(error?.message || error) });
-      }
-      return;
-    }
-
-    if (data.type === "generate") {
-      stopper.reset();
-      let tokens = -1; // le premier appel correspond à la question, pas à la réponse
-      let first = 0;
-      try {
-        const streamer = new TextStreamer(generator.tokenizer, {
-          skip_prompt: true,
-          skip_special_tokens: true,
-          callback_function: (text) => send({ type: "token", id: data.id, text }),
-          token_callback_function: () => { tokens += 1; if (tokens === 1) first = performance.now(); },
-        });
-        await generator(data.messages, {
-          max_new_tokens: data.max,
-          do_sample: false,
-          repetition_penalty: 1.05,
-          streamer,
-          stopping_criteria: stopper,
-        });
-        const seconds = first ? (performance.now() - first) / 1000 : 0;
-        send({ type: "done", id: data.id, tokens: Math.max(tokens, 0), seconds });
-      } catch (error) {
-        send({ type: "error", stage: "generate", id: data.id, message: String(error?.message || error) });
-      }
-    }
-  }
-  return receive;
-}
-
-// Dans un Web Worker, on branche le moteur sur les messages du fil.
-if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope) {
-  const receive = createEngine((message) => self.postMessage(message));
-  self.onmessage = (event) => receive(event.data);
-}
-</script>
 
 <script>
 (() => {
@@ -520,6 +450,71 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
 
   // --- Moteur ---------------------------------------------------------------
 
+  // Bibliothèque qui fait tourner le modèle dans le navigateur.
+  const LIB = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2";
+
+  // Le moteur reçoit des messages (load, generate, stop) et répond avec send().
+  // Cette fonction est autonome : elle est aussi recopiée telle quelle dans un fil
+  // séparé (Web Worker), pour que la page ne se fige pas pendant qu'Alfred écrit.
+  function makeEngine(lib, send) {
+    const { pipeline, TextStreamer, InterruptableStoppingCriteria } = lib;
+    let generator = null;
+    const stopper = new InterruptableStoppingCriteria();
+
+    async function load(model, device, dtype) {
+      const files = new Map();
+      const progress = (p) => {
+        if (p.status !== "progress" || !p.total) return;
+        files.set(p.file, [p.loaded, p.total]);
+        let loaded = 0, total = 0;
+        for (const [l, t] of files.values()) { loaded += l; total += t; }
+        send({ type: "progress", loaded, total });
+      };
+      return pipeline("text-generation", model, { device, dtype, progress_callback: progress });
+    }
+
+    async function receive(data) {
+      if (data.type === "stop") { stopper.interrupt(); return; }
+
+      if (data.type === "load") {
+        generator = null;
+        try {
+          generator = await load(data.model, data.device, data.dtype);
+          send({ type: "ready" });
+        } catch (error) {
+          send({ type: "error", stage: "load", message: String(error?.message || error) });
+        }
+        return;
+      }
+
+      if (data.type === "generate") {
+        stopper.reset();
+        let tokens = -1; // le premier appel correspond à la question, pas à la réponse
+        let first = 0;
+        try {
+          const streamer = new TextStreamer(generator.tokenizer, {
+            skip_prompt: true,
+            skip_special_tokens: true,
+            callback_function: (text) => send({ type: "token", id: data.id, text }),
+            token_callback_function: () => { tokens += 1; if (tokens === 1) first = performance.now(); },
+          });
+          await generator(data.messages, {
+            max_new_tokens: data.max,
+            do_sample: false,
+            repetition_penalty: 1.05,
+            streamer,
+            stopping_criteria: stopper,
+          });
+          const seconds = first ? (performance.now() - first) / 1000 : 0;
+          send({ type: "done", id: data.id, tokens: Math.max(tokens, 0), seconds });
+        } catch (error) {
+          send({ type: "error", stage: "generate", id: data.id, message: String(error?.message || error) });
+        }
+      }
+    }
+    return receive;
+  }
+
   function onEngine(data) {
     if (data.type === "progress") {
       const pct = Math.min(100, Math.round((data.loaded / data.total) * 100));
@@ -549,12 +544,14 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
         store.set("loaded", null);
         for (const job of pending.values()) job.reject(new Error(data.message));
         pending.clear();
-        const wasGpu = gpu;
+        const wasGpu = gpu && !data.blocked;
         if (wasGpu) gpu = false; // carte graphique refusée : on propose le modèle sur processeur
-        loadError = (wasGpu
-          ? "Le modèle n'a pas pu démarrer sur la carte graphique. Vérifie ta connexion et recharge la page, ou essaie le modèle de secours."
-          : "Le modèle n'a pas pu démarrer. Vérifie ta connexion, ou essaie un navigateur récent (Chrome, Edge) sur un ordinateur.")
-          + ` (Détail technique : ${String(data.message).slice(0, 140)})`;
+        loadError = data.blocked
+          ? "Cette page n'a pas accès à Internet ici : c'est le cas quand le fichier est ouvert dans un aperçu (application Fichiers, pièce jointe, application Claude). Sur téléphone, Alfred doit être ouvert depuis une adresse web dans Safari ou Chrome."
+          : (wasGpu
+            ? "Le modèle n'a pas pu démarrer sur la carte graphique. Recharge la page pour réessayer, ou essaie le modèle de secours."
+            : "Le modèle n'a pas pu démarrer. Sur téléphone, la mémoire est souvent insuffisante : essaie sur un ordinateur avec Chrome ou Edge.")
+            + ` (Détail technique : ${String(data.message).slice(0, 140)})`;
         openSetup(loadError);
         refreshChrome();
       } else {
@@ -569,21 +566,34 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
     store.set("model", model.id);
     engine?.terminate();
     const request = { type: "load", model: model.id, device: gpu ? "webgpu" : "wasm", dtype: model.dtype };
-    const url = URL.createObjectURL(new Blob([$("engine").textContent], { type: "text/javascript" }));
-    let answered = false;
-    const thread = new Worker(url, { type: "module" });
-    thread.onmessage = (event) => { answered = true; onEngine(event.data); };
-    thread.onerror = async () => {
-      if (answered) return onEngine({ type: "error", stage: "load", message: "worker" });
-      // Le fil séparé n'a pas démarré (page ouverte comme fichier) : moteur dans la page.
+
+    // Plan B : le moteur tourne dans la page elle-même. Nécessaire quand le
+    // navigateur refuse le fil séparé (fichier ouvert par double-clic, téléphone).
+    const inPage = async () => {
       try {
-        const { createEngine } = await import(url);
-        const receive = createEngine(onEngine);
+        const receive = makeEngine(await import(LIB), onEngine);
         engine = { postMessage: receive, terminate() {} };
         receive(request);
       } catch (error) {
-        onEngine({ type: "error", stage: "load", message: String(error) });
+        // Même la bibliothèque est inaccessible : on regarde si Internet est bloqué pour cette page.
+        const online = await fetch(LIB + "/package.json").then((r) => r.ok, () => false);
+        onEngine({ type: "error", stage: "load", blocked: !online, message: String(error?.message || error) });
       }
+    };
+
+    let answered = false;
+    let thread = null;
+    try {
+      const source = `import * as lib from "${LIB}";\nconst receive = (${makeEngine.toString()})(lib, (message) => self.postMessage(message));\nself.onmessage = (event) => receive(event.data);`;
+      thread = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })), { type: "module" });
+    } catch { /* pas de fil séparé possible ici */ }
+    if (!thread) { engine = null; inPage(); refreshChrome(); return; }
+    thread.onmessage = (event) => { answered = true; onEngine(event.data); };
+    thread.onerror = (event) => {
+      event.preventDefault?.();
+      if (answered) return onEngine({ type: "error", stage: "load", message: "Le moteur s'est arrêté (mémoire insuffisante ?)" });
+      thread.terminate();
+      inPage();
     };
     engine = thread;
     engine.postMessage(request);

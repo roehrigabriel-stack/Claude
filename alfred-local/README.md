@@ -48,8 +48,19 @@ Sans Internet, rien ne quitte ton appareil. Quand Internet est activé, ta quest
 - La recherche passe par des services gratuits sans clé. Ils peuvent ralentir, limiter le nombre de demandes ou changer. Dans ce cas Alfred répond sans Internet ou se rabat sur Wikipédia.
 - Le modèle Avancé pèse 1,9 Go et demande une bonne carte graphique.
 
+## Sur téléphone
+
+Un téléphone ne peut pas lancer Alfred depuis le fichier : les aperçus (application Fichiers, pièce jointe, application Claude) bloquent l'accès à Internet dont la page a besoin pour charger le modèle. Il faut l'ouvrir depuis une adresse web dans Safari ou Chrome, donc le mettre en ligne (voir ci-dessous).
+
+Sur téléphone, choisis le modèle Léger (300 Mo). Il faut un téléphone récent : sur iPhone, iOS 26 ou plus pour que Safari donne accès à la carte graphique. Sans elle, le modèle de secours (790 Mo) risque de dépasser la mémoire du téléphone.
+
 ## Le mettre en ligne gratuitement
 
-Comme c'est un simple fichier, n'importe quel hébergeur de sites statiques gratuit convient (GitHub Pages, Netlify, Cloudflare Pages). Pour GitHub Pages : crée un nouveau dépôt public qui contient seulement `index.html`, puis active Pages dans ses réglages.
+Comme c'est un simple fichier, n'importe quel hébergeur de sites statiques gratuit convient. Avec GitHub Pages :
+
+1. Sur github.com, crée un nouveau dépôt **public**, par exemple `alfred`.
+2. Dans ce dépôt : Add file, Upload files, choisis `index.html`, puis Commit changes.
+3. Settings, Pages, Source : "Deploy from a branch", branche `main`, dossier `/ (root)`, Save.
+4. Après une minute environ, la page est en ligne à l'adresse `https://TON-PSEUDO.github.io/alfred/`.
 
 Ne rends pas ce dépôt-ci public pour ça : il contient tes informations personnelles (`context/`, `CLAUDE.md`).
