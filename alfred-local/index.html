@@ -363,6 +363,7 @@ dialog::backdrop { background: rgba(6, 8, 12, 0.6); backdrop-filter: blur(4px); 
   let active = null;      // modèle chargé (entrée de MODELS)
   let busy = false;       // une réponse est en cours
   let cancelled = false;
+  let retryInPage = null; // relance le moteur dans la page si le fil séparé échoue
   let fetchStop = null;   // AbortController des requêtes Internet en cours
   const pending = new Map(); // générations en attente, par identifiant
   let nextId = 1;
@@ -457,7 +458,26 @@ dialog::backdrop { background: rgba(6, 8, 12, 0.6); backdrop-filter: blur(4px); 
   // Cette fonction est autonome : elle est aussi recopiée telle quelle dans un fil
   // séparé (Web Worker), pour que la page ne se fige pas pendant qu'Alfred écrit.
   function makeEngine(lib, send) {
-    const { pipeline, TextStreamer, InterruptableStoppingCriteria } = lib;
+    const { pipeline, TextStreamer, InterruptableStoppingCriteria, env } = lib;
+    // Un seul fil de calcul : les fils multiples demandent un réglage serveur que ni un
+    // fichier local ni un hébergement simple ne fournissent, et ils échouent sur certains téléphones.
+    try { env.backends.onnx.wasm.numThreads = 1; env.backends.onnx.wasm.proxy = false; } catch {}
+    // Certains navigateurs de téléphone refusent la copie d'objets (structuredClone) que la
+    // bibliothèque utilise pour suivre le téléchargement : on se rabat alors sur une copie JSON.
+    const nativeClone = globalThis.structuredClone;
+    if (nativeClone && !nativeClone.alfred) {
+      const safeClone = (value, options) => {
+        try { return nativeClone(value, options); }
+        catch (error) { try { return JSON.parse(JSON.stringify(value)); } catch { throw error; } }
+      };
+      safeClone.alfred = true;
+      try { globalThis.structuredClone = safeClone; } catch {}
+    }
+    // Décrit une erreur avec l'endroit où elle s'est produite, pour pouvoir la diagnostiquer.
+    const describe = (error) => {
+      const where = String(error?.stack || "").split("\n").filter((l) => l && !l.includes(String(error?.message))).slice(0, 2).map((l) => l.trim().replace(/https?:\/\/[^\s)]*\//g, "")).join(" < ");
+      return `${error?.name || "Erreur"} : ${error?.message || error}${where ? ` [${where.slice(0, 160)}]` : ""}`;
+    };
     let generator = null;
     const stopper = new InterruptableStoppingCriteria();
 
@@ -482,7 +502,7 @@ dialog::backdrop { background: rgba(6, 8, 12, 0.6); backdrop-filter: blur(4px); 
           generator = await load(data.model, data.device, data.dtype);
           send({ type: "ready" });
         } catch (error) {
-          send({ type: "error", stage: "load", message: String(error?.message || error) });
+          send({ type: "error", stage: "load", message: describe(error) });
         }
         return;
       }
@@ -508,7 +528,7 @@ dialog::backdrop { background: rgba(6, 8, 12, 0.6); backdrop-filter: blur(4px); 
           const seconds = first ? (performance.now() - first) / 1000 : 0;
           send({ type: "done", id: data.id, tokens: Math.max(tokens, 0), seconds });
         } catch (error) {
-          send({ type: "error", stage: "generate", id: data.id, message: String(error?.message || error) });
+          send({ type: "error", stage: "generate", id: data.id, message: describe(error) });
         }
       }
     }
@@ -539,6 +559,10 @@ dialog::backdrop { background: rgba(6, 8, 12, 0.6); backdrop-filter: blur(4px); 
       job?.resolve({ tokens: data.tokens, seconds: data.seconds });
     } else if (data.type === "error") {
       console.error("Alfred :", data.message);
+      if (data.stage === "load" && retryInPage && /clon/i.test(data.message)) {
+        // Erreur de copie d'objet dans le fil séparé : on retente avec le moteur dans la page.
+        return retryInPage();
+      }
       if (data.stage === "load") {
         ready = false; loading = false; active = null;
         store.set("loaded", null);
@@ -551,7 +575,7 @@ dialog::backdrop { background: rgba(6, 8, 12, 0.6); backdrop-filter: blur(4px); 
           : (wasGpu
             ? "Le modèle n'a pas pu démarrer sur la carte graphique. Recharge la page pour réessayer, ou essaie le modèle de secours."
             : "Le modèle n'a pas pu démarrer. Sur téléphone, la mémoire est souvent insuffisante : essaie sur un ordinateur avec Chrome ou Edge.")
-            + ` (Détail technique : ${String(data.message).slice(0, 140)})`;
+            + ` (Détail technique : ${String(data.message).slice(0, 300)})`;
         openSetup(loadError);
         refreshChrome();
       } else {
@@ -583,8 +607,9 @@ dialog::backdrop { background: rgba(6, 8, 12, 0.6); backdrop-filter: blur(4px); 
 
     let answered = false;
     let thread = null;
+    retryInPage = null;
     try {
-      const source = `import * as lib from "${LIB}";\nconst receive = (${makeEngine.toString()})(lib, (message) => self.postMessage(message));\nself.onmessage = (event) => receive(event.data);`;
+      const source = `import * as lib from "${LIB}";\nconst receive = (${makeEngine.toString()})(lib, (message) => { try { self.postMessage(message); } catch { self.postMessage(JSON.parse(JSON.stringify(message))); } });\nself.onmessage = (event) => receive(event.data);`;
       thread = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })), { type: "module" });
     } catch { /* pas de fil séparé possible ici */ }
     if (!thread) { engine = null; inPage(); refreshChrome(); return; }
@@ -596,6 +621,7 @@ dialog::backdrop { background: rgba(6, 8, 12, 0.6); backdrop-filter: blur(4px); 
       inPage();
     };
     engine = thread;
+    retryInPage = () => { retryInPage = null; thread.terminate(); loadPct = null; inPage(); };
     engine.postMessage(request);
     refreshChrome();
   }
