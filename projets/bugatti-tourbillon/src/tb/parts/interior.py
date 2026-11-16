@@ -461,7 +461,8 @@ def build_dash(K):
     geo.delete_faces(dash, lambda c, f: abs(c.x) < SCREEN_HW - 0.004 and
                      SCREEN_HINGE_Y + 0.004 < c.y < SCREEN_HINGE_Y + SCREEN_LEN - 0.004 and f.normal.z > 0.5)
     mats.assign(dash, 'leather_light')
-    mats.assign_faces(dash, 'leather_dark', lambda c, p: (p.normal.z > 0.3 and (c.y < -0.95 + 0.28 * ss(0.15, 0.6, abs(c.x)) or abs(c.x) < 0.075))
+    ncol = len(rows[0])
+    mats.assign_faces(dash, 'leather_dark', lambda c, p: (p.normal.z > 0.3 and (p.index % ncol) < 3 * per)
                       or p.normal.z < -0.5 or abs(p.normal.x) > 0.9)
     K.dash.append(dash)
     # well under the screen lid

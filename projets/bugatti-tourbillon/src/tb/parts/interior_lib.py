@@ -451,7 +451,7 @@ def make_materials():
     if bpy.data.materials.get('Interior_LeatherPale') is not None:
         return
     lk = dict(specular=0.4, sheen=0.3, sheen_roughness=0.4)
-    for name, col, rough in (('Interior_LeatherPale', '#8fa9c0', 0.5), ('Interior_LeatherDark', '#2f4350', 0.5),
+    for name, col, rough in (('Interior_LeatherPale', '#7690a8', 0.5), ('Interior_LeatherDark', '#26394a', 0.5),
                              ('Interior_LeatherSlate', '#2c3a44', 0.55)):
         _bump(mats.custom(name, base_color=col, roughness=rough, **lk), 'voronoi', 900.0, 0.12, 0.0003)
     _bump(mats.custom('Interior_Alcantara', base_color='#0f1318', roughness=0.95, sheen=0.2, sheen_roughness=0.5), 'noise', 1400.0, 0.25, 0.0004)

@@ -556,8 +556,8 @@ def window_outlines(P, grow, design=None):
     return ps
 
 
-SPOKE = dict(rhoF=0.42, wS=0.19, wA0=0.150, wA1=0.170, a0=44.0, k1=0.30, k2=0.20, rho_end=1.02,
-             top_frac=0.72, depth_k=1.0)
+SPOKE = dict(rhoF=0.47, wS=0.20, wA0=0.13, wA1=0.19, a0=40.0, k1=0.26, k2=0.22, rho_end=1.02,
+             top_frac=0.80, depth_k=1.0, pad_off=3.2)
 
 
 def _mat_brushed():
@@ -625,7 +625,7 @@ def build_rim(name, key, quality, coll):
                       and math.hypot(c.y, c.z) > Rf + 0.004)
 
     # ---------------- skeletal Y spokes: compact hub + swept stems/arms (no boolean)
-    hub_rhos = [0.0, 0.10, 0.20, 0.26, 0.285]
+    hub_rhos = [0.0, 0.10, 0.20, 0.30, 0.33]
     front = [(r_ * Rf, face_a(P, r_) - 0.0008) for r_ in hub_rhos]
     back = [(r_ * Rf, face_a(P, r_) - 0.0008 - 0.030) for r_ in reversed(hub_rhos)]
     hub = geo.revolve(name + '_Hub', front + back, segments=nseg, axis='X', coll=coll, sharp_angle=40.0)
@@ -667,12 +667,12 @@ def build_rim(name, key, quality, coll):
     for k in range(5):
         sa = 90.0 + 72.0 * k
         F = np.array(polar(F_r, sa))
-        stem = np.linspace(np.array(polar(0.15, sa)), F, 14)
+        stem = np.linspace(np.array(polar(0.20, sa)), F, 14)
         parts.append(sweep('%s_Stem%d' % (name, k), stem, lambda u: D['wS']))
         for sg in (-1.0, 1.0):
-            Pend = np.array(polar(D['rho_end'], sa + sg * 36.0))
+            Pend = np.array(polar(D['rho_end'], sa + sg * (36.0 - D['pad_off'])))
             P1 = F + D['k1'] * np.array(polar(1.0, sa + sg * D['a0']))
-            P2 = Pend - D['k2'] * np.array(polar(1.0, sa + sg * 36.0))
+            P2 = Pend - D['k2'] * np.array(polar(1.0, sa + sg * (36.0 - D['pad_off'])))
             arm = bez(F, P1, P2, Pend, 30 if final else 20)
             parts.append(sweep('%s_Arm%d%d' % (name, k, int(sg)), arm,
                                lambda u: D['wA0'] + (D['wA1'] - D['wA0']) * u))
@@ -680,18 +680,18 @@ def build_rim(name, key, quality, coll):
     geo.recalc_normals(face)
     geo.shade(face, True, 38.0)
     mats.assign(face, _mat_dark())
-    mats.assign_faces(face, _mat_brushed(), lambda c, p: p.normal.x > 0.85 and math.hypot(c.y, c.z) > 0.29 * Rf)
+    mats.assign_faces(face, _mat_brushed(), lambda c, p: p.normal.x > 0.85 and math.hypot(c.y, c.z) > 0.335 * Rf)
     if final:
         geo.mod_bevel(face, 0.0012, 1, 35.0, harden=False)
         geo.apply_modifiers(face)
 
     # ---------------- bolts (on the hub, between the stems)
-    bolt_r = 0.235 * Rf
+    bolt_r = 0.265 * Rf
     bolt_phis = [126.0 + 72.0 * k for k in range(5)]
     bolts = []
     for k, ph in enumerate(bolt_phis):
         y, z = polar(bolt_r, ph)
-        a0 = face_a(P, 0.235) - 0.0016
+        a0 = face_a(P, 0.265) - 0.0016
         rb = 0.0075
         prof_b = [(0.0, a0), (rb, a0), (rb, a0 + 0.0055), (0.9 * rb, a0 + 0.0070), (0.5 * rb, a0 + 0.0070),
                   (0.5 * rb, a0 + 0.0052), (0.0, a0 + 0.0052)]
