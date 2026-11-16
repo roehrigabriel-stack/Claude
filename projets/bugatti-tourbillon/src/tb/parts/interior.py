@@ -18,6 +18,7 @@ from mathutils import Vector, Matrix
 
 from tb import geo, mats, rig, spec
 from tb.parts import interior_lib as L
+mats = L.IM   # own Interior_ materials; the shared library is never modified
 from tb.parts.interior_lib import T, R, S
 
 C = spec.CABIN
@@ -49,11 +50,13 @@ Y_HEADER_IN = spec.Y_HEADER - 0.01   # front edge of the headliner
 Z_HEAD_REAR = ZHEAD - 0.05           # headliner height at the bulkhead (roof falls)
 PLAN_FRONT = 0.86                    # teardrop plan: width factor at the footwell front
 PLAN_REAR = 0.84                     # width factor at the bulkhead
-SEAT_W = 0.176                       # seat cushion half width (tunnel and sill limit it)
+SEAT_W = 0.188                       # seat cushion half width (tunnel and sill limit it)
 DOOR_X_OUT = XBELT + 0.023            # door card outer face
 DOOR_Y0 = spec.DOOR_Y_FRONT + 0.05
 DOOR_Y1 = 0.42
-SCREEN_HINGE_Y = YDR - 0.205         # pop-up screen hinge line (front edge of its lid)
+SCREEN_HINGE_Y = -0.855         # pop-up screen hinge line (front edge of its lid)
+DASH_VALLEY = 0.055
+ZSCR = ZDT - DASH_VALLEY            # dash top on the centreline (valley)
 SCREEN_LEN = 0.178
 SCREEN_HW = 0.066
 
@@ -129,6 +132,7 @@ def build_tub(K):
         geo.flip_normals(tub)
     mats.assign(tub, 'carpet')
     mats.assign_faces(tub, 'carbon_gloss', lambda c, p: abs(p.normal.x) > 0.6 and c.y > -0.95)
+    mats.assign_faces(tub, 'leather_light', lambda c, p: abs(p.normal.x) > 0.6 and c.y <= -0.95)
     K.main.append(tub)
 
     # toe board between the side walls, up to the dash underside
@@ -277,14 +281,14 @@ def seat_path():
 def build_seat(K):
     """Left (driver) seat; returns the list of objects."""
     coll = K.coll
-    ns = 300 if K.fin else 140
+    ns = 300 if K.fin else 110
     p2 = geo.catmull_rom(seat_path(), per_seg=12)
     p2 = geo.resample(p2, ns)
     p2 = np.asarray(p2)[:, :2] if np.asarray(p2).shape[1] >= 2 else np.asarray(p2)
     seg = np.linalg.norm(np.diff(p2, axis=0), axis=1)
     sarc = np.concatenate([[0], np.cumsum(seg)])
-    Wb = geo.Pchip([0.30, 0.45, 0.62, 0.74, 0.80, 0.86, 1.05], [0.185, 0.198, 0.205, 0.195, 0.14, 0.13, 0.125])
-    Hbb = geo.Pchip([0.30, 0.42, 0.60, 0.74, 0.80, 1.05], [0.05, 0.085, 0.07, 0.062, 0.022, 0.02])
+    Wb = geo.Pchip([0.30, 0.45, 0.62, 0.74, 0.80, 0.86, 1.05], [0.200, 0.215, 0.228, 0.222, 0.15, 0.135, 0.125])
+    Hbb = geo.Pchip([0.30, 0.42, 0.60, 0.74, 0.80, 1.05], [0.06, 0.110, 0.100, 0.085, 0.03, 0.02])
     Wcb = geo.Pchip([0.30, 0.74, 0.80, 1.05], [0.56, 0.58, 0.80, 0.80])
     rows, shell_rows, info = [], [], []
     for i in range(ns):
@@ -351,24 +355,24 @@ def build_seat(K):
     # navy piping along the seams between bolsters and centre panels
     for side in (1, -1):
         pts = [sp(i, side * (info[i]['Wc'] + 0.0055), 0.0035) for i in range(2, ns - 2, 3)]
-        pip = L.tube('Interior_Seat_Piping_L', pts, 0.0026, coll, res=2)
+        pip = L.tube('Interior_Seat_Piping%d_L' % (side > 0), pts, 0.0026, coll, res=2)
         mats.assign(pip, 'leather_dark')
         out.append(pip)
     # aluminium strip along the shell sides (seen in the side view)
     iz = [i for i in range(ns) if info[i]['k'] > 0.9 and 0.40 < info[i]['z'] < 0.80]
     for side in (1, -1):
         pts = [sp(i, side * (info[i]['W'] + 0.0175), -0.35 * info[i]['D']) for i in iz[::4]]
-        st = L.tube('Interior_Seat_Strip_L', pts, 0.0022, coll, res=2)
+        st = L.tube('Interior_Seat_Strip%d_L' % (side > 0), pts, 0.0022, coll, res=2)
         mats.assign(st, 'aluminum_polished')
         out.append(st)
     # belt slots in the shell top (dark recess with an aluminium frame)
     ish = min(range(ns), key=lambda i: abs(info[i]['z'] - 0.80) + (0 if info[i]['k'] > 0.9 else 9))
     d = info[ish]
-    for side in (1, -1):
-        c = Vector(sp(ish, side * 0.10, -d['D'] - 0.006))
+    for side in (1,):
+        c = Vector(sp(ish, 0.0, -d['D'] - 0.006))
         n = Vector((0, -d['n'][0], -d['n'][1]))
         Mf = L.frame_from_normal(c, n, up_hint=(1, 0, 0))
-        path = [(x, y, 0) for x, y in L.stadium_path(0.022, 0.075, 8)]
+        path = [(x, y, 0) for x, y in L.stadium_path(0.040, 0.110, 10)]
         ring = geo.sweep('Interior_Seat_Slot_L', path, [(0.002 * math.cos(2 * math.pi * q / 8), 0.002 * math.sin(2 * math.pi * q / 8))
                                                        for q in range(8)], closed_path=True, coll=coll)
         geo.transform_mesh(ring, Mf)
@@ -399,8 +403,9 @@ def build_seat(K):
     mats.assign(an, 'aluminum_polished')
     out += [g, an]
     # buckle on the tunnel side
-    bx, by, bz = XT + 0.012, HY + 0.06, ZT + 0.02
-    stalk = L.tube('Interior_Seat_BuckleStalk_L', [(bx, by + 0.02, ZT - 0.08), (bx, by + 0.01, bz - 0.02), (bx, by, bz)],
+    bx, by = XT - 0.035, HY + 0.06
+    bz = con_z(bx, by)
+    stalk = L.tube('Interior_Seat_BuckleStalk_L', [(bx, by + 0.02, bz - 0.05), (bx, by + 0.01, bz - 0.01), (bx, by, bz + 0.005)],
                    0.007, coll)
     mats.assign(stalk, 'leather_dark')
     bk = geo.box('Interior_Seat_Buckle_L', (0.022, 0.034, 0.062), (bx, by, bz + 0.03), coll)
@@ -427,7 +432,8 @@ def dash_profile(x):
     ax = abs(x)
     te = ss(0.42, X_DASH_END, ax)                 # outer end: the wing drops towards the door
     tc = 1.0 - ss(0.10, 0.24, ax)                 # centre: blends into the console spine
-    top = ZDT
+    top = (ZDT - DASH_VALLEY * (1.0 - ss(0.04, 0.30, ax)) - 0.012 * ss(0.34, 0.5, ax)
+           - 0.10 * ss(0.46, X_DASH_END, ax))
     yf = geo.lerp(Y_DASH_CTR, Y_DASH_FRONT, ss(0.12, 0.60, ax))   # front edge: deep on the centreline, back at the A-pillars
     yr = YDR + 0.004 * te
     lip = 0.600 - 0.065 * te - 0.02 * tc
@@ -455,12 +461,13 @@ def build_dash(K):
     geo.delete_faces(dash, lambda c, f: abs(c.x) < SCREEN_HW - 0.004 and
                      SCREEN_HINGE_Y + 0.004 < c.y < SCREEN_HINGE_Y + SCREEN_LEN - 0.004 and f.normal.z > 0.5)
     mats.assign(dash, 'leather_light')
-    mats.assign_faces(dash, 'leather_dark', lambda c, p: p.normal.z > 0.55 or p.normal.z < -0.5 or abs(p.normal.x) > 0.9)
+    mats.assign_faces(dash, 'leather_dark', lambda c, p: (p.normal.z > 0.3 and (c.y < -0.95 + 0.28 * ss(0.15, 0.6, abs(c.x)) or abs(c.x) < 0.075))
+                      or p.normal.z < -0.5 or abs(p.normal.x) > 0.9)
     K.dash.append(dash)
     # well under the screen lid
     well = geo.box('Interior_ScreenWell', (2 * SCREEN_HW - 0.01, SCREEN_LEN - 0.01, 0.04),
-                   (0, SCREEN_HINGE_Y + SCREEN_LEN / 2, ZDT - 0.024), coll)
-    geo.delete_faces(well, lambda c, f: c.z > ZDT - 0.01)
+                   (0, SCREEN_HINGE_Y + SCREEN_LEN / 2, ZSCR - 0.024), coll)
+    geo.delete_faces(well, lambda c, f: c.z > ZSCR - 0.01)
     geo.flip_normals(well)
     mats.assign(well, 'plastic_black')
     K.dash.append(well)
@@ -495,8 +502,9 @@ def build_dash(K):
                 geo.transform_mesh(ob, L.frame(Vector((x, yv, zv)), Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, 1, 0))))
                 K.dash.append(ob)
     # aluminium spine on the dash top (front of the screen lid)
-    pts = [(0, y, float(np.interp(y, [Y_DASH_FRONT, -1.10, -0.92, -0.76], [ZDT - 0.045, ZDT - 0.016, ZDT - 0.004, ZDT])) + 0.0015)
-           for y in np.linspace(Y_DASH_FRONT + 0.02, SCREEN_HINGE_Y - 0.004, 16)]
+    pr0 = dash_profile(0.0)
+    pts = [(0, y, float(np.interp(y, [q[0] for q in pr0[:4]], [q[1] for q in pr0[:4]])) + 0.004)
+           for y in np.linspace(pr0[0][0] + 0.02, SCREEN_HINGE_Y - 0.004, 16)]
     sp = geo.sweep('Interior_DashSpine', pts, L.rrect(0.03, 0.004, 0.0018, 3), up=(0, 0, 1), coll=coll)
     mats.assign(sp, 'aluminum_polished')
     K.dash.append(sp)
@@ -511,8 +519,13 @@ con_top = geo.Pchip(CON_Y, CON_Z)
 con_hw = geo.Pchip([-0.665, -0.45, -0.20, 0.0, 0.40, YBH], [0.105, 0.120, XT - 0.008, XT - 0.006, XT - 0.006, XT - 0.012])
 frame_hw = geo.Pchip([-0.600, -0.56, -0.49, -0.40, -0.27, -0.13, -0.05, 0.04, 0.20, YBH - 0.01],
                      [0.016, 0.030, 0.058, 0.068, 0.070, 0.058, 0.032, 0.012, 0.009, 0.008])
+_fh, _wh = frame_hw, None
+frame_hw = lambda y: 0.78 * _fh(y)
 WIN_Y0, WIN_Y1 = -0.535, -0.075
 win_hw = geo.Pchip([WIN_Y0, -0.50, -0.42, -0.27, -0.13, WIN_Y1], [0.0, 0.040, 0.054, 0.056, 0.042, 0.0])
+
+_wh0 = win_hw
+win_hw = lambda y: 0.78 * _wh0(y)
 
 
 def con_z(x, y):
@@ -601,75 +614,78 @@ def build_console(K):
             geo.transform_mesh(ob, Mf @ extra)
             K.dash.append(ob)
 
-    # two large crystal rotary knobs, then a column of smaller ones
-    place(L.knob('Interior_KnobA', coll, 0.021, 0.034, knurl_n=48), 0.0, -0.468)
-    place(L.knob('Interior_KnobB', coll, 0.021, 0.034, knurl_n=48), 0.0, -0.405)
-    # start button: small crystal-covered display
-    btn = L.prism('Interior_StartBezel', L.rrect(0.026, 0.022, 0.006), 0.0, 0.004, coll)
-    geo.mod_bevel(btn, 0.0012, 2, 30)
-    mats.assign(btn, 'aluminum_polished')
-    face = L.prism('Interior_StartFace', L.rrect(0.020, 0.016, 0.004), 0.004, 0.0055, coll)
-    mats.assign(face, 'emit_cluster')
-    place([btn, face], 0.0, -0.352)
-    # toggles in two columns, small knobs in the middle
-    for k, y in enumerate((-0.318, -0.282, -0.246)):
-        for x in (-0.034, 0.034):
-            place(L.toggle('Interior_Toggle', coll, size=0.010, tilt=-18 if k % 2 else 18), x, y)
-        place(L.knob('Interior_KnobS', coll, 0.0085, 0.016, crystal=(k != 1), knurl_n=24), 0.0, y)
-    # drive selector (R / N / D) and engine start pull lever
-    sel_base = L.prism('Interior_SelectorBase', L.rrect(0.03, 0.05, 0.01), 0.0, 0.005, coll)
-    geo.mod_bevel(sel_base, 0.0015, 2, 30)
-    mats.assign(sel_base, 'aluminum_brushed')
-    stem = L.lathe('Interior_SelectorStem', [(0, 0.004), (0.004, 0.004), (0.0035, 0.024), (0, 0.024)], seg=16, coll=coll)
-    mats.assign(stem, 'chrome')
-    head = L.lathe('Interior_SelectorHead', [(0, 0.022), (0.009, 0.022), (0.011, 0.028), (0.011, 0.036),
-                                             (0.008, 0.040), (0, 0.040)], seg=32, coll=coll)
-    mats.assign(head, 'crystal')
-    place([sel_base, stem, head], 0.0, -0.195)
-    lever_b = L.prism('Interior_StartLeverBase', L.rrect(0.04, 0.02, 0.008), 0.0, 0.006, coll)
+    # exactly three large glass-capped knurled knobs on a diagonal
+    for k, (kx, ky) in enumerate(((-0.013, -0.492), (0.0, -0.418), (0.013, -0.344))):
+        place(L.knob_glass('Interior_Knob%s' % 'ABC'[k], coll, 0.020, 0.058, knurl_n=48), kx, ky)
+    # key block of varied sizes
+    keys = [(-0.020, -0.285, 0.016, 0.012), (0.0, -0.285, 0.011, 0.012), (0.019, -0.285, 0.016, 0.012),
+            (-0.016, -0.258, 0.024, 0.011), (0.016, -0.258, 0.016, 0.011),
+            (-0.020, -0.232, 0.011, 0.012), (0.0, -0.232, 0.020, 0.012), (0.020, -0.232, 0.011, 0.012)]
+    for k, (kx, ky, kw, kh) in enumerate(keys):
+        key = L.prism('Interior_Key', L.rrect(kw, kh, 0.003, 2), 0.0, 0.0045, coll)
+        geo.mod_bevel(key, 0.0008, 2, 30)
+        mats.assign(key, 'aluminum_brushed' if k % 3 else 'plastic_gloss')
+        dot = L.prism('Interior_KeyDot', L.rrect(kw * 0.5, kh * 0.4, 0.001, 2), 0.0044, 0.0050, coll)
+        mats.assign(dot, 'emit_cluster')
+        place([key, dot], kx, ky)
+    red = L.prism('Interior_KeyRed', L.rrect(0.016, 0.012, 0.003, 2), 0.0, 0.0055, coll)
+    geo.mod_bevel(red, 0.0008, 2, 30)
+    mats.assign(red, mats.custom('Interior_StartRed', base_color='#9a1016', metallic=0.2, roughness=0.3, coat=1.0))
+    place([red], 0.0, -0.108)
+    # pull-to-start lever with a glass handle
+    lever_b = L.prism('Interior_StartLeverBase', L.rrect(0.036, 0.020, 0.008), 0.0, 0.006, coll)
     geo.mod_bevel(lever_b, 0.0015, 2, 30)
     mats.assign(lever_b, 'aluminum_polished')
-    lev = L.tube('Interior_StartLever', [(-0.014, 0, 0.004), (-0.014, -0.004, 0.016), (0, -0.006, 0.019),
-                                         (0.014, -0.004, 0.016), (0.014, 0, 0.004)], 0.0028, coll, res=2)
-    mats.assign(lev, mats.custom('Interior_StartRed', base_color='#9a1016', metallic=0.6, roughness=0.25, coat=1.0))
-    place([lever_b, lev], 0.0, -0.125)
+    stem = L.lathe('Interior_StartLeverStem', [(0, 0.004), (0.0035, 0.004), (0.003, 0.026), (0, 0.026)], seg=16, coll=coll)
+    mats.assign(stem, 'chrome')
+    hd = L.lathe('Interior_StartLeverGlass', [(0, 0.024), (0.005, 0.024), (0.009, 0.032), (0.011, 0.044), (0.009, 0.056),
+                                              (0.004, 0.062), (0, 0.064)], seg=32, coll=coll)
+    mats.assign(hd, 'crystal')
+    place([lever_b, stem, hd], 0.0, -0.170, extra=R('X', -18))
     # polished stripe along the tunnel top is the narrow tail of the frame (already built)
 
     # pop-up screen on its hinge (front edge of the lid)
     dash_root = rig.module_root('Interior_Dash')
-    hinge = rig.hinge('Screen', (0.0, SCREEN_HINGE_Y, ZDT + 0.001), (1.0, 0.0, 0.0), 'screen', 105.0, parent_obj=dash_root)
+    hinge = rig.hinge('Screen', (0.0, SCREEN_HINGE_Y, ZSCR + 0.001), (1.0, 0.0, 0.0), 'screen', 105.0, parent_obj=dash_root)
     y0 = SCREEN_HINGE_Y
     lid = L.prism('Interior_ScreenLid', L.rrect(2 * SCREEN_HW, SCREEN_LEN, 0.01), -0.003, 0.0015, coll)
-    geo.transform_mesh(lid, T(0, y0 + SCREEN_LEN / 2, ZDT))
+    geo.transform_mesh(lid, T(0, y0 + SCREEN_LEN / 2, ZSCR))
     geo.mod_bevel(lid, 0.0012, 2, 30)
     mats.assign(lid, 'leather_dark')
     fr2 = L.prism('Interior_ScreenFrame', L.rrect(2 * SCREEN_HW - 0.008, SCREEN_LEN - 0.008, 0.008), -0.013, -0.003, coll)
-    geo.transform_mesh(fr2, T(0, y0 + SCREEN_LEN / 2, ZDT))
+    geo.transform_mesh(fr2, T(0, y0 + SCREEN_LEN / 2, ZSCR))
     geo.mod_bevel(fr2, 0.0015, 2, 30)
     mats.assign(fr2, 'aluminum_polished')
     disp = L.prism('Interior_Screen', L.rrect(2 * SCREEN_HW - 0.022, SCREEN_LEN - 0.022, 0.004), -0.0137, -0.0129, coll)
-    geo.transform_mesh(disp, T(0, y0 + SCREEN_LEN / 2, ZDT))
+    geo.transform_mesh(disp, T(0, y0 + SCREEN_LEN / 2, ZSCR))
     mats.assign(disp, 'glass_dark')
     ui = []
     yc = y0 + SCREEN_LEN / 2
     zu0, zu1 = -0.0142, -0.0137
     ring = L.annulus('Interior_ScreenRing', 0.030, 0.035, zu0, zu1, seg=56, coll=coll)
-    geo.transform_mesh(ring, T(0, yc + 0.030, ZDT))
+    geo.transform_mesh(ring, T(0, yc + 0.030, ZSCR))
     ring2 = L.annulus('Interior_ScreenRing2', 0.011, 0.014, zu0, zu1, seg=32, coll=coll)
-    geo.transform_mesh(ring2, T(-0.030, yc - 0.020, ZDT))
+    geo.transform_mesh(ring2, T(-0.030, yc - 0.020, ZSCR))
     ring3 = L.annulus('Interior_ScreenRing3', 0.011, 0.014, zu0, zu1, seg=32, coll=coll)
-    geo.transform_mesh(ring3, T(0.030, yc - 0.020, ZDT))
+    geo.transform_mesh(ring3, T(0.030, yc - 0.020, ZSCR))
     bar0 = L.prism('Interior_ScreenBar0', L.rrect(0.090, 0.006, 0.002, 2), zu0, zu1, coll)
-    geo.transform_mesh(bar0, T(0, yc + 0.074, ZDT))
+    geo.transform_mesh(bar0, T(0, yc + 0.074, ZSCR))
     bars = [L.prism('Interior_ScreenBarB%d' % k, L.rrect(0.026, 0.012, 0.003, 2), zu0, zu1, coll) for k in range(3)]
     for k, b in enumerate(bars):
-        geo.transform_mesh(b, T(-0.032 + 0.032 * k, yc - 0.062, ZDT))
+        geo.transform_mesh(b, T(-0.032 + 0.032 * k, yc - 0.062, ZSCR))
     uimesh = geo.join([ring, ring2, ring3, bar0] + bars, 'Interior_ScreenUI')
     mats.assign(uimesh, 'emit_screen')
     ui.append(uimesh)
-    strip = geo.box('Interior_ScreenSpine', (0.03, SCREEN_LEN - 0.004, 0.0035), (0, y0 + SCREEN_LEN / 2, ZDT + 0.0028), coll)
+    strip = geo.box('Interior_ScreenSpine', (0.03, SCREEN_LEN - 0.004, 0.0035), (0, y0 + SCREEN_LEN / 2, ZSCR + 0.0028), coll)
     geo.mod_bevel(strip, 0.0012, 2, 30)
     mats.assign(strip, 'aluminum_polished')
+    arm = L.tube('Interior_ScreenArm', [(0, y0 + 0.004, ZSCR - 0.03), (0, y0 + 0.012, ZSCR - 0.012), (0, y0 + 0.030, ZSCR - 0.011)], 0.007, coll)
+    mats.assign(arm, 'aluminum_polished')
+    ui.append(arm)
+    kn = L.knob('Interior_ScreenKnob', coll, 0.0225, 0.030, crystal=False, knurl_n=40)
+    for ob in kn:
+        geo.transform_mesh(ob, T(0, -0.705, ZSCR))
+        K.dash.append(ob)
     for ob in (lid, fr2, disp, strip, *ui):
         geo.parent(ob, hinge)
         K.screen.append(ob)
@@ -693,10 +709,10 @@ def build_wheel(K):
     rot, fix = [], []
     per = 10 if K.fin else 6
     path = rim_path(per)
-    prof = [(0.0148 * math.cos(2 * math.pi * k / 18), 0.0172 * math.sin(2 * math.pi * k / 18)) for k in range(18)]
+    prof = [(0.0160 * math.cos(2 * math.pi * k / 18), 0.0190 * math.sin(2 * math.pi * k / 18)) for k in range(18)]
     rim = geo.sweep('Interior_Wheel_Rim', path, prof, closed_path=True, up=(0, 0, 1), coll=coll, sharp_angle=None)
-    mats.assign(rim, 'leather_light')
-    mats.assign_faces(rim, 'leather_dark', lambda c, p: c.y > 0.118 and abs(c.x) > 0.010)
+    mats.assign(rim, 'leather_slate')
+    mats.assign_faces(rim, 'leather_light', lambda c, p: c.y > 0.125 and abs(c.x) < 0.045)
     mats.assign_faces(rim, 'aluminum_polished', lambda c, p: c.y < -0.12 and abs(c.x) < 0.022)
     rot.append(rim)
     # stitching on the inner circumference
@@ -706,7 +722,7 @@ def build_wheel(K):
         n_in = -v.normalized()
         inner.append(tuple(v + n_in * 0.0142 + Vector((0, 0, 0.004))))
     st = L.tube('Interior_Wheel_Stitch', inner, 0.0009, coll, res=1, cyclic=True, spline='POLY')
-    mats.assign(st, 'leather_dark')
+    mats.assign(st, 'stitch')
     rot.append(st)
     # horizontal spokes (3 and 9 o'clock) curving back to the rotating collar
     for side in (1, -1):
@@ -714,23 +730,23 @@ def build_wheel(K):
                (side * 0.105, -0.009, -0.064), (side * 0.072, -0.006, -0.070)]
         pts = geo.catmull_rom(pts, per_seg=5)
         spk = geo.sweep('Interior_Wheel_Spoke', pts, L.rrect(0.014, 0.034, 0.006, 3), up=(0, 1, 0), coll=coll, cap=True)
-        mats.assign(spk, 'leather_light')
+        mats.assign(spk, 'leather_slate')
         rot.append(spk)
         # aluminium switch pod with two buttons and a small roller
-        pod = L.prism('Interior_Wheel_Pod', L.rrect(0.030, 0.052, 0.009), -0.012, 0.0, coll)
+        pod = L.prism('Interior_Wheel_Pod', L.rrect(0.026, 0.050, 0.008), -0.012, 0.0, coll)
         geo.mod_bevel(pod, 0.002, 2, 30)
-        geo.transform_mesh(pod, T(side * 0.138, -0.012, 0.0))
+        geo.transform_mesh(pod, T(side * 0.142, -0.012, 0.0))
         mats.assign(pod, 'aluminum_polished')
         rot.append(pod)
         for k, dy in enumerate((0.010, -0.010)):
             b = L.prism('Interior_Wheel_Btn', L.rrect(0.016, 0.011, 0.004), 0.0, 0.003, coll)
             geo.mod_bevel(b, 0.0012, 2, 30)
-            geo.transform_mesh(b, T(side * 0.138, -0.012 + dy + 0.006, 0.0))
+            geo.transform_mesh(b, T(side * 0.142, -0.012 + dy + 0.006, 0.0))
             mats.assign(b, 'plastic_gloss')
             rot.append(b)
         rl = L.lathe('Interior_Wheel_Roller', [(0, -0.004), (0.006, -0.004), (0.006, 0.004), (0, 0.004)], seg=32,
                      coll=coll, knurl=(16, 0.0006, -0.004, 0.004))
-        geo.transform_mesh(rl, T(side * 0.138, -0.031, 0.002) @ R('Y', 90))
+        geo.transform_mesh(rl, T(side * 0.142, -0.031, 0.002) @ R('Y', 90))
         mats.assign(rl, 'aluminum_polished')
         rot.append(rl)
         # paddle shifters behind the rim
@@ -742,6 +758,12 @@ def build_wheel(K):
         geo.mod_bevel(pad, 0.0015, 2, 30)
         mats.assign(pad, 'aluminum_polished')
         rot.append(pad)
+    # two black posts reaching round behind the cluster
+    for side in (1, -1):
+        post = geo.box('Interior_Wheel_Post', (0.012, 0.115, 0.016), (side * 0.060, 0.112, -0.020), coll)
+        geo.mod_bevel(post, 0.002, 2, 30)
+        mats.assign(post, 'plastic_black')
+        rot.append(post)
     # lower twin spoke (navy)
     for dx in (-0.011, 0.011):
         pts = geo.catmull_rom([(dx, -0.136, -0.004), (dx, -0.126, -0.022), (dx * 1.2, -0.104, -0.052), (dx * 1.4, -0.074, -0.068)],
@@ -764,18 +786,23 @@ def build_wheel(K):
     # hub pod (fixed, pale blue leather) with the EB monogram
     secs = []
     for cz, s in ((-0.026, 0.93), (-0.014, 1.0), (0.018, 1.0), (0.031, 0.96), (0.038, 0.88), (0.042, 0.72)):
-        secs.append([(x * s, -0.024 + y * s, cz) for x, y in L.rrect(0.116, 0.092, 0.036, 6)])
+        secs.append([(x * s, -0.024 + y * s, cz) for x, y in L.ellipse(0.07, 0.07, 48)])
     hub = geo.grid_surface('Interior_Hub', secs, close_v=True, coll=coll)
     geo.fill_holes(hub)
     geo.recalc_normals(hub)
     geo.mod_subsurf(hub, 1, 2 if K.fin else 1)
     mats.assign(hub, 'leather_light')
     fix.append(hub)
-    ring = geo.sweep('Interior_HubBadgeRing', [(x, -0.024 + y, 0.0425) for x, y in L.rrect(0.074, 0.050, 0.02, 5)],
+    ring = geo.sweep('Interior_HubBadgeRing', [(x, -0.024 + y, 0.0425) for x, y in L.ellipse(0.036, 0.036, 40)],
                      [(0.0015 * math.cos(2 * math.pi * k / 8), 0.0015 * math.sin(2 * math.pi * k / 8)) for k in range(8)],
                      closed_path=True, coll=coll)
     mats.assign(ring, 'aluminum_polished')
     fix.append(ring)
+    ring2 = geo.sweep('Interior_HubRing', [(x, -0.024 + y, 0.016) for x, y in L.ellipse(0.0715, 0.0715, 64)],
+                      [(0.003 * math.cos(2 * math.pi * k / 8), 0.003 * math.sin(2 * math.pi * k / 8)) for k in range(8)],
+                      closed_path=True, coll=coll)
+    mats.assign(ring2, 'aluminum_polished')
+    fix.append(ring2)
     eb = L.eb_logo('Interior_HubEB', 0.034, 0.0012, coll)
     geo.transform_mesh(eb, T(0, -0.025, 0.0425))
     mats.assign(eb, 'aluminum_polished')
@@ -786,19 +813,29 @@ def build_wheel(K):
         geo.mod_bevel(arm, 0.004, 2, 30)
         mats.assign(arm, 'aluminum_brushed')
         fix.append(arm)
-        for ob in L.knob('Interior_HubKnob', coll, 0.0105, 0.012, crystal=False, knurl_n=30):
-            geo.transform_mesh(ob, T(side * 0.082, -0.016, 0.001))
-            fix.append(ob)
+        cyl = L.lathe('Interior_HubKnob', [(0, -0.025), (0.0055, -0.025), (0.006, -0.022), (0.006, 0.022), (0.0055, 0.025), (0, 0.025)],
+                      seg=48, coll=coll, knurl=(24, 0.0006, -0.021, 0.021))
+        geo.transform_mesh(cyl, T(side * 0.082, -0.016, 0.001) @ R('Y', side * 75))
+        mats.assign(cyl, 'plastic_black')
+        fix.append(cyl)
     # cluster: skeleton frame + three dials
-    dials = [((0.0, 0.072, 0.0), 0.040, ['0', '50', '100', '150', '200', '250', '300', '350', '400', '450', '500'], True),
-             ((-0.068, 0.034, -0.004), 0.027, ['0', '2', '4', '6', '8', '10'], False),
-             ((0.068, 0.034, -0.004), 0.027, ['0', '25', '50', '75', '100'], False)]
+    dials = [((0.0, 0.094, 0.0), 0.047, ['0', '100', '200', '300', '400', '500'], True),
+             ((-0.085, 0.050, -0.004), 0.034, [], False),
+             ((0.085, 0.050, -0.004), 0.034, [], False)]
     hull = []
     for (cx, cy, cz), r, _n, _b in dials:
         hull += [(cx + (r * 1.13 + 0.005) * math.cos(t), cy + (r * 1.13 + 0.005) * math.sin(t)) for t in np.linspace(0, 2 * math.pi, 40)]
-    hull += [(x, y) for x, y in L.rrect(0.10, 0.05, 0.02, 4, 0.0, 0.0)]
+    hull += [(x, y) for x, y in L.rrect(0.12, 0.05, 0.02, 4, 0.0, 0.0)]
+    hull += [(-0.125, 0.075), (0.125, 0.075), (-0.06, 0.145), (0.06, 0.145)]
     hull = L.convex_hull(hull)
     plate = L.prism('Interior_ClusterPlate', [(x, y) for x, y in hull], -0.036, -0.028, coll)
+    cuts = []
+    for sx in (1, -1):
+        tri = [(sx * 0.060, 0.099), (sx * 0.082, 0.099), (sx * 0.071, 0.121)]
+        cuts.append(L.prism('cut', tri if sx > 0 else tri[::-1], -0.05, -0.01, coll))
+        cuts.append(L.prism('cut', [(sx * 0.108, 0.058), (sx * 0.121, 0.058), (sx * 0.114, 0.070)] if sx > 0 else
+                            [(-0.121, 0.058), (-0.108, 0.058), (-0.114, 0.070)][::-1], -0.05, -0.01, coll))
+    geo.boolean(plate, geo.join(cuts, 'cutter'), 'DIFFERENCE', solver='EXACT')
     geo.mod_bevel(plate, 0.0015, 2, 30)
     mats.assign(plate, 'aluminum_polished')
     fix.append(plate)
@@ -809,21 +846,22 @@ def build_wheel(K):
         mats.assign(house, 'titanium')
         fix.append(house)
         parts = L.dial('Interior_Dial%d' % k, coll, r, nums, ticks=50 if big else 30, major_every=5,
-                       needle_deg=150.0 if big else (100.0 if k == 1 else 60.0), detail=True, red_zone=(k == 1))
+                       needle_deg=150.0 if big else (100.0 if k == 1 else 60.0), detail=True, red_zone=(k == 1), window=(k == 0), sub=(k == 1),
+                       label=('PUISSANCE V16' if k == 2 else None))
         for ob in parts:
             geo.transform_mesh(ob, T(cx, cy, cz))
             fix.append(ob)
     # bridges linking the dials (open skeleton look)
-    items = [T(-0.036, 0.055, -0.010) @ R('Z', 28) @ S(0.03, 0.006, 0.004),
-             T(0.036, 0.055, -0.010) @ R('Z', -28) @ S(0.03, 0.006, 0.004),
-             T(0.0, 0.020, -0.012) @ S(0.05, 0.007, 0.004)]
+    items = [T(-0.050, 0.100, -0.0125) @ R('Z', -8) @ S(0.03, 0.005, 0.004),
+             T(0.050, 0.100, -0.0125) @ R('Z', 8) @ S(0.03, 0.005, 0.004),
+             T(0.0, 0.020, -0.012) @ S(0.09, 0.007, 0.004)]
     br = L.cubes('Interior_ClusterBridges', items, coll)
     geo.mod_bevel(br, 0.001, 2, 30)
     mats.assign(br, 'aluminum_polished')
     fix.append(br)
     # screws on the frame
     sc = []
-    for (x, y) in ((-0.050, 0.075), (0.050, 0.075), (-0.040, 0.005), (0.040, 0.005), (0.0, 0.125)):
+    for (x, y) in ((-0.100, 0.085), (0.100, 0.085), (-0.060, 0.020), (0.060, 0.020), (0.0, 0.150)):
         s = L.lathe('Interior_Screw', [(0, 0.0), (0.0025, 0.0), (0.0025, 0.001), (0.0015, 0.0016), (0, 0.0017)], seg=12, coll=coll)
         geo.transform_mesh(s, T(x, y, -0.028))
         sc.append(s)
@@ -950,13 +988,33 @@ def build_doors(K):
     rec = L.prism('Interior_DoorHandleRecess_L', L.ellipse(0.075, 0.022, 40), 0.0, 0.003, coll)
     geo.transform_mesh(rec, L.frame(Vector((xh - 0.0025, yh + 0.02, zh)), Vector((0, 1, 0)), Vector((0, 0, 1)), Vector((-1, 0, 0))))
     mats.assign(rec, 'leather_dark')
-    lev = L.tube('Interior_DoorHandle_L', [(xh - 0.008, yh - 0.035, zh), (xh - 0.022, yh, zh + 0.002),
-                                           (xh - 0.024, yh + 0.045, zh + 0.001), (xh - 0.018, yh + 0.075, zh)], 0.0065, coll, res=3)
+    lev = L.tube('Interior_DoorHandle_L', [(xh - 0.004, yh - 0.065, zh), (xh - 0.026, yh - 0.060, zh + 0.003),
+                                           (xh - 0.034, yh - 0.020, zh + 0.004), (xh - 0.034, yh + 0.020, zh + 0.004),
+                                           (xh - 0.026, yh + 0.060, zh + 0.003), (xh - 0.004, yh + 0.065, zh)], 0.006, coll, res=3)
     mats.assign(lev, 'aluminum_polished')
     boss = L.lathe('Interior_DoorHandleBoss_L', [(0, 0.0), (0.012, 0.0), (0.012, 0.012), (0.009, 0.016), (0, 0.016)], seg=32, coll=coll)
     geo.transform_mesh(boss, L.frame(Vector((xh - 0.003, yh - 0.035, zh)), Vector((0, 1, 0)), Vector((0, 0, 1)), Vector((-1, 0, 0))))
     mats.assign(boss, 'aluminum_polished')
     parts += [rec, lev, boss]
+    # pocket lid with the Tourbillon script, and a carbon trim piece near the hinge
+    yp, zp = -0.30, 0.455
+    xp = door_inner_x(yp, zp)
+    Fp = L.frame(Vector((xp - 0.0015, yp, zp)), Vector((0, -1, 0)), Vector((0, 0, 1)), Vector((-1, 0, 0)))
+    lidp = L.prism('Interior_DoorPocket_L', L.rrect(0.30, 0.075, 0.02, 6), 0.0, 0.003, coll)
+    geo.transform_mesh(lidp, Fp)
+    mats.assign(lidp, 'leather_dark')
+    scr = geo.text_mesh('Interior_DoorScript_L', 'Tourbillon', size=0.032, extrude=0.0006, coll=coll)
+    geo.transform_mesh(scr, L.frame(Vector((xp - 0.0045, yp, zp - 0.008)), Vector((0, -1, 0)), Vector((0, 0, 1)), Vector((-1, 0, 0))))
+    mats.assign(scr, 'aluminum_polished')
+    yc2, zc2 = DOOR_Y0 + 0.09, 0.60
+    ct = L.prism('Interior_DoorCarbon_L', L.rrect(0.15, 0.17, 0.02, 5), 0.0, 0.004, coll)
+    geo.transform_mesh(ct, L.frame(Vector((door_inner_x(yc2, zc2) - 0.001, yc2, zc2)), Vector((0, -1, 0)), Vector((0, 0, 1)), Vector((-1, 0, 0))))
+    mats.assign(ct, 'carbon_gloss')
+    parts += [lidp, scr, ct]
+    pts = [(door_inner_x(y, 0.40) - 0.0015, y, 0.40) for y in np.linspace(DOOR_Y0 + 0.2, 0.05, 16)]
+    amb2 = L.tube('Interior_DoorGlow_L', pts, 0.002, coll, res=2)
+    mats.assign(amb2, 'emit_interior')
+    parts.append(amb2)
     # ambient light strip under the window sill cap
     pts = [(door_inner_x(y, 0.795) - 0.0015, y, 0.795) for y in np.linspace(DOOR_Y0 + 0.03, spec.door_rear_y(0.795) - 0.075, 20)]
     amb = L.tube('Interior_DoorLight_L', pts, 0.0022, coll, res=2)
@@ -978,8 +1036,8 @@ def build_lights(K):
     coll = K.coll
     spots = [('Interior_Lamp_Roof_L', (XS, HY - 0.12, ZHEAD - 0.02), 0.22, 0.10, 14.0),
              ('Interior_Lamp_Roof_R', (-XS, HY - 0.12, ZHEAD - 0.02), 0.22, 0.10, 14.0),
-             ('Interior_Lamp_Foot_L', (XS, -0.86, 0.53), 0.16, 0.08, 3.0),
-             ('Interior_Lamp_Foot_R', (-XS, -0.86, 0.53), 0.16, 0.08, 3.0),
+             ('Interior_Lamp_Foot_L', (XS, -0.86, 0.53), 0.16, 0.08, 9.0),
+             ('Interior_Lamp_Foot_R', (-XS, -0.86, 0.53), 0.16, 0.08, 9.0),
              ('Interior_Lamp_Console', (0.0, -0.30, ZHEAD - 0.03), 0.12, 0.30, 6.0)]
     for name, loc, sx, sy, watts in spots:
         ld = bpy.data.lights.new(name, 'AREA')
@@ -1006,11 +1064,7 @@ def _tint(name, rgb):
 def build(ctx):
     import os
     K = Ctx(ctx)
-    for nm, col in (('leather_light', (0.44, 0.55, 0.66)), ('leather_dark', (0.12, 0.19, 0.25))):
-        _tint(nm, col)
-    for n in mats.get('alcantara').node_tree.nodes:
-        if n.type == 'BSDF_PRINCIPLED':
-            n.inputs['Sheen Weight'].default_value = 0.15
+    L.make_materials()
     build_tub(K)
     build_seats(K)
     build_dash(K)

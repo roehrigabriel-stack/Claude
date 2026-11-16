@@ -230,7 +230,7 @@ def stadium_path(w, h, n=10):
 
 # ----------------------------------------------------------------- composite parts
 def dial(prefix, coll, radius, numerals, ticks=60, major_every=5, needle_deg=-120.0, sweep=(225.0, -45.0),
-         detail=True, red_zone=False):
+         detail=True, red_zone=False, window=False, sub=False, label=None):
     """Skeleton watch-style instrument around the local origin, axis +Z (facing the viewer).
     Returns a list of (object, material) already assigned."""
     r = radius
@@ -276,7 +276,7 @@ def dial(prefix, coll, radius, numerals, ticks=60, major_every=5, needle_deg=-12
     for k, label in enumerate(numerals):
         a = math.radians(a0 + (a1 - a0) * k / max(n - 1, 1))
         rc = r * 0.62
-        t = text(prefix + '_N%d' % k, label, r * 0.17, 0.0003, coll)
+        t = text(prefix + '_N%d' % k, label, r * 0.12, 0.0003, coll)
         geo.transform_mesh(t, T(rc * math.cos(a), rc * math.sin(a), -0.0024))
         nums.append(t)
     if nums:
@@ -305,8 +305,8 @@ def dial(prefix, coll, radius, numerals, ticks=60, major_every=5, needle_deg=-12
             spiral.append((-r * 0.22 + rr * math.cos(ang), r * 0.25 + rr * math.sin(ang), -0.0057))
         sp = tube(prefix + '_Spiral', spiral, 0.00025, coll, res=1, spline='POLY')
         out.append(mat(sp, 'gold'))
-        items = [T(0, -r * 0.05, -0.0048) @ R('Z', 25) @ S(r * 1.25, r * 0.10, 0.0012),
-                 T(r * 0.05, r * 0.10, -0.0046) @ R('Z', -50) @ S(r * 1.05, r * 0.08, 0.0012)]
+        items = [T(0, -r * 0.05, -0.0048) @ R('Z', 25) @ S(r * 0.75, r * 0.07, 0.0012),
+                 T(r * 0.05, r * 0.10, -0.0046) @ R('Z', -50) @ S(r * 0.6, r * 0.06, 0.0012)]
         br = cubes(prefix + '_Bridges', items, coll)
         geo.mod_bevel(br, 0.0004, 1, 30)
         out.append(mat(br, 'aluminum_brushed'))
@@ -328,6 +328,29 @@ def dial(prefix, coll, radius, numerals, ticks=60, major_every=5, needle_deg=-12
     cap = lathe(prefix + '_Cap', [(0, 0.0012), (r * 0.06, 0.0010), (r * 0.07, 0.0), (r * 0.07, -0.001)], seg=24, coll=coll)
     out.append(mat(cap, 'aluminum_polished'))
     _ = na
+    if window:
+        wn = prism(prefix + '_Win', rrect(r * 0.62, r * 0.20, r * 0.04, 3), -0.0031, -0.0026, coll)
+        geo.transform_mesh(wn, T(0, -r * 0.50, 0))
+        out.append(mat(wn, 'plastic_black'))
+        tx = text(prefix + '_WinTxt', '000', r * 0.13, 0.0003, coll)
+        geo.transform_mesh(tx, T(0, -r * 0.50, -0.0024))
+        out.append(mat(tx, 'emit_cluster'))
+    if sub:
+        rs = r * 0.30
+        for q, ang in enumerate((90.0, 210.0, 330.0)):
+            cx, cy = r * 0.42 * math.cos(math.radians(ang)), r * 0.42 * math.sin(math.radians(ang))
+            ring = annulus(prefix + '_SubR%d' % q, rs * 0.86, rs, -0.0032, -0.0019, seg=40, coll=coll)
+            geo.transform_mesh(ring, T(cx, cy, 0))
+            out.append(mat(ring, 'aluminum_polished'))
+            dk = disc(prefix + '_SubD%d' % q, rs * 0.86, -0.0030, seg=32, coll=coll)
+            geo.transform_mesh(dk, T(cx, cy, 0))
+            out.append(mat(dk, 'plastic_black'))
+            hd = cubes(prefix + '_SubH%d' % q, [T(cx, cy, -0.0026) @ R('Z', 40 + 70 * q) @ T(rs * 0.35, 0, 0) @ S(rs * 0.75, rs * 0.07, 0.0004)], coll)
+            out.append(mat(hd, 'emit_cluster'))
+    if label:
+        lb = text(prefix + '_Label', label, r * 0.095, 0.0003, coll)
+        geo.transform_mesh(lb, T(0, -r * 0.38, -0.0024))
+        out.append(mat(lb, 'emit_cluster'))
     # sapphire glass dome
     gl = dome(prefix + '_Glass', r * 0.99, r * 0.10, z0=0.0045, seg=64, coll=coll)
     out.append(mat(gl, 'glass_clear'))
@@ -393,4 +416,90 @@ def vent(prefix, coll, w, h, depth=0.02):
     vane = cubes(prefix + '_Vane', [T(0, 0, -0.006) @ S(0.0025, h * 0.85, 0.012)], coll)
     geo.mod_bevel(vane, 0.0008, 1, 30)
     out.append(mat(vane, 'aluminum_dark'))
+    return out
+
+
+# ----------------------------------------------------------------- own materials (never mutate the shared library)
+ALIAS = {'leather_light': 'Interior_LeatherPale', 'leather_dark': 'Interior_LeatherDark',
+         'leather_slate': 'Interior_LeatherSlate', 'alcantara': 'Interior_Alcantara', 'carpet': 'Interior_Carpet',
+         'fabric_light': 'Interior_Fabric', 'stitch': 'Interior_Stitch', 'emit_interior': 'Interior_Ambient'}
+
+
+def _bump(m, kind, scale, strength, dist):
+    nt = m.node_tree
+    b = [n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'][0]
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    if kind == 'voronoi':
+        t = nt.nodes.new('ShaderNodeTexVoronoi')
+        t.feature = 'DISTANCE_TO_EDGE'
+        t.inputs['Scale'].default_value = scale
+        h = t.outputs['Distance']
+    else:
+        t = nt.nodes.new('ShaderNodeTexNoise')
+        t.inputs['Scale'].default_value = scale
+        t.inputs['Detail'].default_value = 3.0
+        h = t.outputs['Fac']
+    nt.links.new(tc.outputs['Object'], t.inputs['Vector'])
+    bp = nt.nodes.new('ShaderNodeBump')
+    bp.inputs['Strength'].default_value = strength
+    bp.inputs['Distance'].default_value = dist
+    nt.links.new(h, bp.inputs['Height'])
+    nt.links.new(bp.outputs['Normal'], b.inputs['Normal'])
+
+
+def make_materials():
+    if bpy.data.materials.get('Interior_LeatherPale') is not None:
+        return
+    lk = dict(specular=0.4, sheen=0.3, sheen_roughness=0.4)
+    for name, col, rough in (('Interior_LeatherPale', '#8fa9c0', 0.5), ('Interior_LeatherDark', '#2f4350', 0.5),
+                             ('Interior_LeatherSlate', '#2c3a44', 0.55)):
+        _bump(mats.custom(name, base_color=col, roughness=rough, **lk), 'voronoi', 900.0, 0.12, 0.0003)
+    _bump(mats.custom('Interior_Alcantara', base_color='#0f1318', roughness=0.95, sheen=0.2, sheen_roughness=0.5), 'noise', 1400.0, 0.25, 0.0004)
+    _bump(mats.custom('Interior_Carpet', base_color='#6f8aa3', roughness=0.92, sheen=0.3, sheen_roughness=0.5), 'noise', 500.0, 0.5, 0.0004)
+    _bump(mats.custom('Interior_Fabric', base_color='#7e97ab', roughness=0.85, sheen=0.5, sheen_roughness=0.5, specular=0.2), 'noise', 700.0, 0.4, 0.0004)
+    mats.custom('Interior_Stitch', base_color='#b8d0e0', roughness=0.6)
+    mats.emissive('Interior_Ambient', '#46d6d0', 5.0, 'interior_lights')
+
+
+class _IM:
+    """Drop-in for tb.mats inside the interior module: maps the shared leather/fabric names to Interior_ materials."""
+    def _r(self, name):
+        make_materials()
+        if isinstance(name, str) and name in ALIAS:
+            return bpy.data.materials[ALIAS[name]]
+        return name
+
+    def assign(self, obj, name, **kw):
+        return mats.assign(obj, self._r(name), **kw)
+
+    def assign_faces(self, obj, name, pred, **kw):
+        return mats.assign_faces(obj, self._r(name), pred, **kw)
+
+    def get(self, name):
+        r = self._r(name)
+        return r if not isinstance(r, str) else mats.get(r)
+
+    def __getattr__(self, n):
+        return getattr(mats, n)
+
+
+IM = _IM()
+
+
+def knob_glass(prefix, coll, r, h, knurl_n=48):
+    """Large knob: polished base, knurled aluminium skirt, glass sleeve over an aluminium core, lit disc on top."""
+    out = []
+    base = lathe(prefix + '_Base', [(r * 1.3, 0.0), (r * 1.3, 0.003), (r * 1.15, 0.006), (r * 1.0, 0.006), (r, 0.0)],
+                 seg=48, coll=coll, closed_profile=True)
+    out.append(mat(base, 'aluminum_polished'))
+    sk = lathe(prefix + '_Skirt', [(0, 0.006), (r * 1.05, 0.006), (r * 1.05, h * 0.30), (r * 1.0, h * 0.32), (0, h * 0.32)],
+               seg=max(96, knurl_n * 3), coll=coll, knurl=(knurl_n, r * 0.07, 0.008, h * 0.30), sharp=25)
+    out.append(mat(sk, 'aluminum_polished'))
+    gl = lathe(prefix + '_Glass', [(r * 0.97, h * 0.32), (r * 0.97, h * 0.92), (r * 0.88, h * 0.97), (0, h * 0.97)],
+               seg=64, coll=coll, sharp=40)
+    out.append(mat(gl, 'crystal'))
+    core = lathe(prefix + '_Core', [(0, h * 0.32), (r * 0.40, h * 0.32), (r * 0.40, h * 0.86), (0, h * 0.86)], seg=32, coll=coll)
+    out.append(mat(core, 'aluminum_polished'))
+    ds = lathe(prefix + '_Disc', [(0, h * 0.865), (r * 0.36, h * 0.865), (r * 0.36, h * 0.873), (0, h * 0.873)], seg=32, coll=coll)
+    out.append(mat(ds, 'emit_cluster'))
     return out
