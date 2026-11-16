@@ -381,7 +381,8 @@ def _bisect(skin, region, sa, ta, sb, tb, iters=12):
 
 
 def mesh_region(skin, S, T, region, name, coll=None, offset=0.0, flip=False, return_params=False,
-                min_faces=1):
+                min_faces=1,
+                weld=0.0):
     """Mesh the part of the skin grid (S stations x T rails) where region < 0.
 
     offset: push the surface along its normal (m). Returns the object (or None)."""
@@ -469,7 +470,7 @@ def mesh_region(skin, S, T, region, name, coll=None, offset=0.0, flip=False, ret
         if len(uniq) >= 3:
             faces.append(uniq)
     ob = geo.new_object(name, V, faces, coll=coll, smooth=True, sharp_angle=None)
-    geo.merge_by_distance(ob, 1e-6)
+    geo.merge_by_distance(ob, max(1e-6, weld))
     if return_params:
         return ob, (ps, pt)
     return ob

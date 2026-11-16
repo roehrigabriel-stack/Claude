@@ -43,7 +43,7 @@ def axle_params(key):
     P['disc_t'] = disc['t']
     P['disc_ri'] = P['disc_ro'] - (0.066 if front else 0.060)
     P['cal_span'] = 30.0 if front else 25.0    # caliper half span (deg) at the outer radius
-    P['cal_phi'] = -8.0 if front else 22.0     # rear half of the disc at both axles (photos)
+    P['cal_phi'] = 18.0     # rear half of the disc at both axles (photos)
     P['cal_w'] = 0.060 if front else 0.052     # caliper half width (axial)
     P['pitches'] = 58 if front else 62
     P['aspect'] = t['aspect']
@@ -248,6 +248,9 @@ def build_tyre(name, key, side, quality, coll):
     pat = tyre_pattern(P)
     T = pat['T']
     final = quality == 'final'
+    pat['slots'] = pat['slots'][:2] if final else pat['slots'][:1]
+    if not final:
+        P = dict(P, pitches=P['pitches'] // 4)
     q_seam = 1.62 * T                       # tread band ends here (on the upper sidewall)
     if q_seam > prof.L * 0.6:
         q_seam = prof.L * 0.6
@@ -265,7 +268,7 @@ def build_tyre(name, key, side, quality, coll):
     # ---- column positions across the tread band (q), with doubled columns at walls
     eps = 0.0004
     cols = set()
-    nb = 26 if final else 14
+    nb = 18 if final else 8
     for i in range(nb + 1):
         cols.add(round(-q_seam + 2 * q_seam * i / nb, 6))
     walls = []
@@ -351,10 +354,17 @@ def build_tyre(name, key, side, quality, coll):
     _orient_outward(tread)
 
     # ---- sidewalls: revolve the rest of the profile (both halves)
-    nseg = 160 if final else 96
+    nseg = 128 if final else 64
     s_seam = q_seam
-    ss = np.linspace(s_seam, prof.L, 34 if final else 22)
-    half = [prof.at(s) for s in ss]
+    ss = np.linspace(s_seam - 0.006, prof.L, 30 if final else 14)
+    half = []
+    for s_ in ss:
+        a_, r_ = prof.at(s_)
+        if s_ < s_seam + 0.004:          # tuck the overlap under the tread band (no crack at the seam)
+            n_ = prof.normal(s_)
+            a_ += n_[0] * 0.0006
+            r_ += n_[1] * 0.0006
+        half.append((a_, r_))
     side_objs = []
     for sgn, tag in ((1, 'Out'), (-1, 'In')):
         prof2 = [(r, sgn * a) for a, r in half]
@@ -426,7 +436,7 @@ def build_sidewall_text(name, P, prof, side, coll, final):
     out = []
     for i, (txt, size, rho0, phi0, spacing) in enumerate(items):
         ob = geo.text_mesh('%s_%d' % (name, i), txt, size=size, extrude=0.0006, coll=coll, spacing=spacing)
-        _subdivide_long_edges(ob, 0.004)
+        _subdivide_long_edges(ob, 0.004 if final else 0.009)
         me = ob.data
         lo = min(v.co.y for v in me.vertices)
         hi = max(v.co.y for v in me.vertices)
@@ -448,7 +458,7 @@ def build_sidewall_text(name, P, prof, side, coll, final):
     o2 = np.argsort(sub2[:, 1])
     r2, a2 = sub2[o2, 1], sub2[o2, 0]
     rows = np.linspace(P['Ro'] - 0.034, P['Ro'] - 0.014, 4)
-    N = 270 if final else 150
+    N = 240 if final else 90
     verts, faces = [], []
     for j in range(3):
         for i in range(N):
@@ -505,44 +515,44 @@ def _edge_pts(ang_deg, r0, w0, r1, w1, sgn):
 
 
 def window_outlines(P, grow, design=None):
-    """The 10 spoke windows (5 inside the V pairs, 5 between them), as lists of (y, z)
-    in metres, for one `grow` offset (front of the cutter: +, back: -)."""
-    # Y spokes (refs/web/wheel_closeup_02/03, blueprint_large): a stem from the hub forks
-    # at rhoN into two arms; arms of neighbouring spokes run to the rim side by side with a
-    # tall narrow window (W) between them; big pentagonal windows (U) inside each fork.
-    D = dict(rhoN=0.47, wA=0.125, wH0=0.20, wH1=0.15, rho_foot=5.0, rho_hub=0.300,
-             rho_rim=0.962, foot_ang=9.0, rcW=0.050, rcU=0.050)
+    """The 10 spoke windows as lists of (y, z) in metres for one `grow` offset.
+    Tourbillon Y spokes: stem k at angle s_k (hub to fork node F), forks into two arms to the
+    rim pads at s_k +- 36 deg, where it meets the neighbouring spoke's arm.
+      big windows  (5): inside each fork, between the two arms, closed by the rim arc
+      small gaps   (5): between neighbouring stems, closed at the pad, open to the hub"""
+    D = dict(rhoF=0.48, wA=0.135, wS=0.185, pad_deg=26.0, rho_hub=0.30, rho_rim=0.955, rcW=0.075, rcG=0.065, pad=0.0)
     if design:
         D.update(design)
     Rf = P['Rf']
-    rhoN, wA = D['rhoN'], D['wA']
+    wA, wS = D['wA'], D['wS']
+    fr = D['rhoF']
+    s0, p0 = 90.0, 90.0 - 36.0         # spoke 0 at 90 deg, pad between spoke 0 and the next CW
+    F0 = np.array(polar(fr, s0))
+    Pl = np.array(polar(1.03, s0 + 36.0))
+    Pr = np.array(polar(1.03, s0 - 36.0))
+    c_big = np.array(polar(0.75, s0))
+    big = [hp_line(F0, Pl, wA / 2, c_big), hp_line(F0, Pr, wA / 2, c_big)]
+    o = np.zeros(2)
+    big += [hp_line(o, np.array(polar(1.0, s0 + D['pad_deg'])), 0.0, c_big),
+            hp_line(o, np.array(polar(1.0, s0 - D['pad_deg'])), 0.0, c_big)]
+    big += hp_circle_inside(D['rho_rim'], s0 - 40.0, s0 + 40.0, 2.0)
+    W = rounded_outline(big, D['rcW'], grow / Rf)
+    # small gap centred on the pad at p0, between spoke 0 (s0) and spoke -1 (s0 - 72)
+    F1 = np.array(polar(fr, s0 - 72.0))
+    Pp = np.array(polar(1.03, p0))
+    c_g = np.array(polar(0.55, p0))
+    gap = [hp_line(F0, Pp, wA / 2, c_g), hp_line(F1, Pp, wA / 2, c_g),
+           hp_line(np.array(polar(0.0, 0.0)), F0, wS / 2, c_g),
+           hp_line(np.array(polar(0.0, 0.0)), F1, wS / 2, c_g)]
+    nrm = np.array(polar(1.0, p0))
+    gap.append((-nrm, -D['rho_hub']))
+    G = rounded_outline(gap, D['rcG'], grow / Rf)
     ps = []
-    # local frame of foot 0: +Y = foot direction (phi = 90), X = tangential
-    fa = D['foot_ang']
-    F_r = np.array(polar(1.03, 90.0 - fa))     # right arm meets the rim
-    F_l = np.array(polar(1.03, 90.0 + fa))
-    N_r = np.array(polar(rhoN, 90.0 - 36.0))
-    N_l = np.array(polar(rhoN, 90.0 + 36.0))
-    # W window (inside the V)
-    cW = np.array([0.0, 0.58])
-    er = _edge_pts(90.0 - 36.0, 0.15, D['wH0'], rhoN, D['wH1'], +1)
-    el = _edge_pts(90.0 + 36.0, 0.15, D['wH0'], rhoN, D['wH1'], -1)
-    hW = [hp_line(F_r, N_r, wA / 2, cW), hp_line(F_l, N_l, wA / 2, cW),
-          (np.array([0.0, 1.0]), D['rho_foot'])] + hp_circle_inside(D['rho_rim'], 70.0, 110.0, 2.0) + [
-          hp_line(er[0], er[1], 0.0, cW), hp_line(el[0], el[1], 0.0, cW),
-          (np.array([0.0, -1.0]), -D['rho_hub'])]
-    # U window (between V0 and the next V clockwise), centred on the N_r direction
-    F2_l = np.array(polar(1.03, 90.0 - 72.0 + fa))
-    cU = np.array(polar(0.80, 90.0 - 36.0))
-    hU = [hp_line(F_r, N_r, wA / 2, cU), hp_line(F2_l, N_r, wA / 2, cU)]
-    hU += hp_circle_inside(D['rho_rim'], 90.0 - 68.0, 90.0 - 4.0, step=2.0)
-    W = rounded_outline(hW, D['rcW'], grow / Rf)
-    U = rounded_outline(hU, D['rcU'], grow / Rf)
     for k in range(5):
         rot = math.radians(72.0 * k)
-        c, s = math.cos(rot), math.sin(rot)
-        for poly in (W, U):
-            ps.append([((x * c - y * s) * Rf, (x * s + y * c) * Rf) for x, y in poly])
+        c, sn = math.cos(rot), math.sin(rot)
+        for poly in (W, G):
+            ps.append([((x * c - y * sn) * Rf, (x * sn + y * c) * Rf) for x, y in poly])
     return ps
 
 
@@ -597,7 +607,7 @@ def build_rim(name, key, quality, coll):
         (Rr - th + 0.001, a_in - ft + 0.003),
     ]
     prof = outer + inner + [outer[0]]
-    nseg = 160 if final else 96
+    nseg = 160 if final else 64
     barrel = geo.revolve(name + '_Barrel', prof, segments=nseg, axis='X', coll=coll, sharp_angle=50.0)
     geo.merge_by_distance(barrel, 1e-6)
     geo.recalc_normals(barrel)
@@ -648,6 +658,9 @@ def build_rim(name, key, quality, coll):
         r = math.hypot(c.y, c.z)
         return p.normal.x > 0.80 and r > rho_split * Rf
     mats.assign_faces(face, _mat_bright(), bright)
+    if final:
+        m = geo.mod_bevel(face, 0.0016, 1, 35.0, harden=False)
+        geo.apply_modifiers(face)
 
     # ---------------- bolts
     bolts = []
@@ -738,7 +751,7 @@ def build_disc(name, key, quality, coll):
     final = quality == 'final'
     ro, ri, t, xd = P['disc_ro'], P['disc_ri'], P['disc_t'], P['x_d']
     ring_t = 0.30 * t
-    nseg = 144 if final else 96
+    nseg = 144 if final else 64
     rings = []
     for sgn in (1, -1):
         a_out = xd + sgn * t / 2
@@ -751,14 +764,14 @@ def build_disc(name, key, quality, coll):
         rings.append(rg)
     disc = geo.join(rings, name + '_Disc')
     # cross-drilled holes, spiral groups placed between the vanes
-    groups = 24 if final else 16
+    groups = 24 if final else 12
     nvanes = groups * 2
     curve = 22.0      # deg of vane sweep from ri to ro
     cutters = []
-    hole_r = 0.0032
+    hole_r = 0.0046
     for g in range(groups):
         base = 360.0 * g / groups + 360.0 / nvanes * 0.5
-        for j, f in enumerate((0.22, 0.50, 0.78) if final else (0.30, 0.70)):
+        for j, f in enumerate((0.20, 0.42, 0.64, 0.86) if final else (0.25, 0.55, 0.85)):
             r = ri + f * (ro - ri)
             ph = base + curve * f
             y, z = polar(r, ph)
@@ -777,7 +790,7 @@ def build_disc(name, key, quality, coll):
     vane = _vane(name + '_Vane', vane_pts, 0.0028, xd - gap / 2 - 0.0005, xd + gap / 2 + 0.0005, coll)
     geo.radial_copies(vane, nvanes, axis='X', pivot=(0, 0, 0))
     disc = geo.join([disc, vane], name + '_Disc')
-    mats.assign(disc, mats.get('brake_disc'))
+    mats.assign(disc, mats.custom('wheel_disc_satin', base_color='#2B2D31', metallic=0.7, roughness=0.38))
     # bell / hat (aluminium) from the hub mount face to the disc inner edge
     am = P['a_mount']
     bell_prof = [
@@ -888,7 +901,7 @@ def build_caliper_text(name, key, side, coll):
     rm = 0.5 * (P['disc_ro'] + 0.016 + P['disc_ri'] - 0.004)
     a_face = P['x_d'] + P['cal_w']
     ob = geo.text_mesh(name, 'BUGATTI', size=0.0215, extrude=0.0006, coll=coll, spacing=1.12)
-    _subdivide_long_edges(ob, 0.004)
+    _subdivide_long_edges(ob, 0.006)
     me = ob.data
     ys = [v.co.y for v in me.vertices]
     vmid = 0.5 * (min(ys) + max(ys))

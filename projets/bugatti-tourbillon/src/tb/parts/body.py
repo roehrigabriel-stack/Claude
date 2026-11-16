@@ -182,7 +182,9 @@ def side_poly(poly):
     return lambda P: BL.poly_sdf(P[:, [1, 2]], poly)
 
 
-def regions():
+def regions(skin):
+    def nrm(s, t):
+        return skin.normal(s, t)
     sdf_cl = side_poly(CLINE_SIDE + [(0.53, 1.30), (-0.40, -0.20)])
     sdf_dlo = side_poly(DLO)
     sdf_int = BL.smooth_closed(INTAKE_F, 8)
@@ -196,8 +198,9 @@ def regions():
         return mx(np.hypot(y - yc, z - zc) - r, 0.55 - x)
     reg['arch_F'] = R(lambda P, s, t: arch(P, s, t, YF, ZF, spec.ARCH_R_F))
     reg['arch_R'] = R(lambda P, s, t: arch(P, s, t, YR, ZR, spec.ARCH_R_R))
-    reg['intake_F'] = R(lambda P, s, t: mx(BL.poly_sdf(P[:, [0, 2]], sdf_int), s + 1.95))
-    reg['headlight'] = R(lambda P, s, t: mx(BL.poly_sdf(P[:, [0, 2]], sdf_head), s + 1.85, 0.5 - P[:, 2]))
+    reg['intake_F'] = R(lambda P, s, t: mx(BL.poly_sdf(P[:, [0, 2]], sdf_int), s + 1.95, nrm(s, t)[:, 1] + 0.3))
+    reg['headlight'] = R(lambda P, s, t: mx(BL.poly_sdf(P[:, [0, 2]], sdf_head), s + 1.85, 0.5 - P[:, 2],
+                                            nrm(s, t)[:, 1] + 0.35))
     reg['side_intake'] = R(lambda P, s, t: mx(BL.poly_sdf(P[:, [1, 2]], sdf_side), 0.6 - P[:, 0],
                                               -0.1 - P[:, 1], P[:, 1] - 0.9))
     reg['scoop'] = R(lambda P, s, t: mx(BL.poly_sdf(P[:, [0, 1]], sdf_scoop), 0.8 - P[:, 2]))
@@ -232,13 +235,13 @@ def regions():
         return mx(x - x_v(y), y - y_cowl(x), 0.55 - z, y + 1.20)
     def roof(P, s, t):
         x, y, z = _xyz(P)
-        return mx(0.84 - z, x - 0.80, -1.40 - y, y - 0.75)
+        return mx(0.86 - z, x - 0.74, y_cowl(np.minimum(x, 0.655)) - 0.03 - y, y - 0.75)
     def fender(P, s, t):
         x, y, z = _xyz(P)
         return mx(y - y_front(z), y + 0.88)
     def quarter(P, s, t):
         x, y, z = _xyz(P)
-        return mx(sdf_cl(P), door_rear(z) - y, 0.45 - x)
+        return mx(sdf_cl(P), door_rear(z) - y, 0.45 - x, 0.55 - nrm(s, t)[:, 0])
     def deck(P, s, t):
         x, y, z = _xyz(P)
         return mx(x - x_bi(y), 0.55 - y, y - 1.96, 0.8 - z)
@@ -342,7 +345,7 @@ def recess(name, skin, inv, poly2, depth, coll, direction=None, taper=0.15, n=64
 
 def _solid(ob, thick, inner='plastic_black'):
     mats.assign(ob, inner, append=True)
-    m = geo.mod_solidify(ob, thick, offset=-1.0)
+    m = geo.mod_solidify(ob, thick, offset=-1.0, even=False)
     m.material_offset = 1
     m.material_offset_rim = 1
     return m
@@ -360,7 +363,7 @@ def build(ctx):
     ds = 0.014 if final else 0.024
     S = skin.column_params(ds)
     T = skin.row_params(ds)
-    reg = regions()
+    reg = regions(skin)
     holes = None
     for h in HOLES:
         holes = reg[h] if holes is None else (holes | reg[h])
@@ -373,13 +376,14 @@ def build(ctx):
         if taken is not None:
             r = r - taken
         taken = own if taken is None else (taken | own)
-        ob = BL.mesh_region(skin, S, T, r.grow(-GAP), name, gcoll if kind.startswith('glass') else coll)
+        ob = BL.mesh_region(skin, S, T, r.grow(-GAP), name, gcoll if kind.startswith('glass') else coll,
+                              weld=0.3 * ds)
         if ob is None:
             print('[body] empty panel', name)
             continue
         mats.assign(ob, mat)
         if kind.startswith('glass'):
-            m = geo.mod_solidify(ob, 0.005, offset=-1.0)
+            m = geo.mod_solidify(ob, 0.005, offset=-1.0, even=False)
         elif kind == 'door':
             _solid(ob, 0.035, 'carbon_matte')
         else:

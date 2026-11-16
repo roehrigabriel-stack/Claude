@@ -50,12 +50,12 @@ Z_HEAD_REAR = ZHEAD - 0.05           # headliner height at the bulkhead (roof fa
 PLAN_FRONT = 0.86                    # teardrop plan: width factor at the footwell front
 PLAN_REAR = 0.84                     # width factor at the bulkhead
 SEAT_W = 0.176                       # seat cushion half width (tunnel and sill limit it)
-DOOR_X_OUT = XBELT + 0.03            # door card outer face
+DOOR_X_OUT = XBELT + 0.023            # door card outer face
 DOOR_Y0 = spec.DOOR_Y_FRONT + 0.05
 DOOR_Y1 = 0.42
-SCREEN_HINGE_Y = YDR - 0.192         # pop-up screen hinge line (front edge of its lid)
-SCREEN_LEN = 0.158
-SCREEN_HW = 0.088
+SCREEN_HINGE_Y = YDR - 0.205         # pop-up screen hinge line (front edge of its lid)
+SCREEN_LEN = 0.178
+SCREEN_HW = 0.066
 
 # steering frame: a = driver's right (-X), b = up in the wheel plane, c = towards the driver
 W_A = Vector((-1.0, 0.0, 0.0))
@@ -237,7 +237,7 @@ def build_tub(K):
 
     # A-pillar inner trims
     base = Vector((X_DASH_END - 0.01, Y_DASH_FRONT + 0.09, ZDT - 0.02))
-    top = Vector((XROOF + 0.005, Y_HEADER_IN - 0.01, ZHEAD - 0.02))
+    top = Vector((XROOF + 0.005, Y_HEADER_IN - 0.01, ZHEAD - 0.032))
     path = [tuple(base.lerp(top, t) + Vector((0.012, 0, 0.012)) * math.sin(math.pi * t)) for t in np.linspace(0, 1, 14)]
     prof = [(0.036 * math.cos(math.pi * k / 10), -0.018 * math.sin(math.pi * k / 10)) for k in range(11)]
     ap = geo.sweep('Interior_APillar_L', path, prof, up=(1.0, 0.0, 0.7), coll=coll, cap=True)
@@ -277,7 +277,7 @@ def seat_path():
 def build_seat(K):
     """Left (driver) seat; returns the list of objects."""
     coll = K.coll
-    ns = 300 if K.fin else 190
+    ns = 300 if K.fin else 140
     p2 = geo.catmull_rom(seat_path(), per_seg=12)
     p2 = geo.resample(p2, ns)
     p2 = np.asarray(p2)[:, :2] if np.asarray(p2).shape[1] >= 2 else np.asarray(p2)
@@ -547,8 +547,8 @@ def build_console(K):
     K.dash.append(body)
 
     # polished aluminium frame plate (teardrop with an open window)
-    nyf = 200 if K.fin else 140
-    nh = 10
+    nyf = 200 if K.fin else 100
+    nh = 10 if K.fin else 6
     rows = []
     for y in np.linspace(-0.600, YBH - 0.012, nyf):
         hw = float(frame_hw(y))
@@ -649,11 +649,28 @@ def build_console(K):
     mats.assign(fr2, 'aluminum_polished')
     disp = L.prism('Interior_Screen', L.rrect(2 * SCREEN_HW - 0.022, SCREEN_LEN - 0.022, 0.004), -0.0137, -0.0129, coll)
     geo.transform_mesh(disp, T(0, y0 + SCREEN_LEN / 2, ZDT))
-    mats.assign(disp, 'emit_screen')
+    mats.assign(disp, 'glass_dark')
+    ui = []
+    yc = y0 + SCREEN_LEN / 2
+    zu0, zu1 = -0.0142, -0.0137
+    ring = L.annulus('Interior_ScreenRing', 0.030, 0.035, zu0, zu1, seg=56, coll=coll)
+    geo.transform_mesh(ring, T(0, yc + 0.030, ZDT))
+    ring2 = L.annulus('Interior_ScreenRing2', 0.011, 0.014, zu0, zu1, seg=32, coll=coll)
+    geo.transform_mesh(ring2, T(-0.030, yc - 0.020, ZDT))
+    ring3 = L.annulus('Interior_ScreenRing3', 0.011, 0.014, zu0, zu1, seg=32, coll=coll)
+    geo.transform_mesh(ring3, T(0.030, yc - 0.020, ZDT))
+    bar0 = L.prism('Interior_ScreenBar0', L.rrect(0.090, 0.006, 0.002, 2), zu0, zu1, coll)
+    geo.transform_mesh(bar0, T(0, yc + 0.074, ZDT))
+    bars = [L.prism('Interior_ScreenBarB%d' % k, L.rrect(0.026, 0.012, 0.003, 2), zu0, zu1, coll) for k in range(3)]
+    for k, b in enumerate(bars):
+        geo.transform_mesh(b, T(-0.032 + 0.032 * k, yc - 0.062, ZDT))
+    uimesh = geo.join([ring, ring2, ring3, bar0] + bars, 'Interior_ScreenUI')
+    mats.assign(uimesh, 'emit_screen')
+    ui.append(uimesh)
     strip = geo.box('Interior_ScreenSpine', (0.03, SCREEN_LEN - 0.004, 0.0035), (0, y0 + SCREEN_LEN / 2, ZDT + 0.0028), coll)
     geo.mod_bevel(strip, 0.0012, 2, 30)
     mats.assign(strip, 'aluminum_polished')
-    for ob in (lid, fr2, disp, strip):
+    for ob in (lid, fr2, disp, strip, *ui):
         geo.parent(ob, hinge)
         K.screen.append(ob)
 
@@ -941,7 +958,7 @@ def build_doors(K):
     mats.assign(boss, 'aluminum_polished')
     parts += [rec, lev, boss]
     # ambient light strip under the window sill cap
-    pts = [(door_inner_x(y, 0.795) - 0.0015, y, 0.795) for y in np.linspace(DOOR_Y0 + 0.03, DOOR_Y1 - 0.03, 20)]
+    pts = [(door_inner_x(y, 0.795) - 0.0015, y, 0.795) for y in np.linspace(DOOR_Y0 + 0.03, spec.door_rear_y(0.795) - 0.075, 20)]
     amb = L.tube('Interior_DoorLight_L', pts, 0.0022, coll, res=2)
     mats.assign(amb, 'emit_interior')
     parts.append(amb)
@@ -989,7 +1006,7 @@ def _tint(name, rgb):
 def build(ctx):
     import os
     K = Ctx(ctx)
-    for nm, col in (('leather_light', (0.52, 0.63, 0.73)), ('leather_dark', (0.12, 0.19, 0.25))):
+    for nm, col in (('leather_light', (0.44, 0.55, 0.66)), ('leather_dark', (0.12, 0.19, 0.25))):
         _tint(nm, col)
     for n in mats.get('alcantara').node_tree.nodes:
         if n.type == 'BSDF_PRINCIPLED':
