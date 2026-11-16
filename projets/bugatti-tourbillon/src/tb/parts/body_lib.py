@@ -487,13 +487,17 @@ class Inverter:
     """Find skin parameters for target points in a projection plane, restricted
     to a parameter window (s range, t range) where the projection is one-to-one."""
 
-    def __init__(self, skin, plane, s_rng, t_rng, n=160):
+    def __init__(self, skin, plane, s_rng, t_rng, n=160, facing=None):
         self.skin = skin
         self.plane = plane
         ss = np.linspace(s_rng[0], s_rng[1], n)
         tt = np.linspace(t_rng[0], t_rng[1], n)
         S, T = np.meshgrid(ss, tt, indexing='ij')
         self.S, self.T = S.ravel(), T.ravel()
+        if facing is not None:          # (axis, v): keep seeds with normal[axis]*sign(v) > |v| (one sheet only)
+            nn = skin.normal(self.S, self.T)
+            keep = nn[:, facing[0]] * np.sign(facing[1]) > abs(facing[1])
+            self.S, self.T = self.S[keep], self.T[keep]
         self.Q = proj(skin.eval(self.S, self.T), plane)
         self.s_rng, self.t_rng = s_rng, t_rng
 

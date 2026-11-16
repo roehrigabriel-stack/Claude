@@ -790,7 +790,7 @@ def build_disc(name, key, quality, coll):
     vane = _vane(name + '_Vane', vane_pts, 0.0028, xd - gap / 2 - 0.0005, xd + gap / 2 + 0.0005, coll)
     geo.radial_copies(vane, nvanes, axis='X', pivot=(0, 0, 0))
     disc = geo.join([disc, vane], name + '_Disc')
-    mats.assign(disc, mats.custom('wheel_disc_satin', base_color='#2B2D31', metallic=0.7, roughness=0.38))
+    mats.assign(disc, mats.custom('wheel_disc_satin', base_color='#5A5D63', metallic=0.75, roughness=0.32))
     # bell / hat (aluminium) from the hub mount face to the disc inner edge
     am = P['a_mount']
     bell_prof = [

@@ -32,23 +32,23 @@ def rails():
     R = []
     sp3 = ('spline', 'spline', 'pchip')
     R.append(BL.Rail('C', [
-        (-2.40, 0.0, 0.575, -2.392), (-2.33, 0.0, 0.612), (-2.20, 0.0, 0.640), (-2.00, 0.0, 0.672),
-        (-1.80, 0.0, 0.716), (-1.65, 0.0, 0.762), (-1.54, 0.0, 0.808), (-1.40, 0.0, 0.856),
+        (-2.40, 0.0, 0.575, -2.392), (-2.33, 0.0, 0.612), (-2.20, 0.0, 0.640), (-2.00, 0.0, 0.660),
+        (-1.80, 0.0, 0.702), (-1.65, 0.0, 0.762), (-1.54, 0.0, 0.808), (-1.40, 0.0, 0.856),
         (-1.20, 0.0, 0.918), (-1.00, 0.0, 0.978), (-0.80, 0.0, 1.040), (-0.63, 0.0, 1.090),
         (-0.45, 0.0, 1.135), (-0.25, 0.0, 1.163), (-0.06, 0.0, 1.179), (0.17, 0.0, 1.181),
         (0.40, 0.0, 1.170), (0.636, 0.0, 1.140), (0.87, 0.0, 1.092), (1.10, 0.0, 1.043),
         (1.34, 0.0, 0.985), (1.57, 0.0, 0.940), (1.80, 0.0, 0.908), (2.04, 0.0, 0.862),
         (2.18, 0.0, 0.822), (2.27, 0.0, 0.795, 2.218)], kind=sp3))
     R.append(BL.Rail('V', [
-        (-2.40, 0.170, 0.565, -2.392), (-2.33, 0.200, 0.600, -2.345), (-2.20, 0.250, 0.632), (-2.00, 0.330, 0.668),
-        (-1.80, 0.420, 0.712), (-1.60, 0.510, 0.764), (-1.40, 0.590, 0.822), (-1.20, 0.625, 0.876),
+        (-2.40, 0.170, 0.565, -2.392), (-2.33, 0.200, 0.600, -2.345), (-2.20, 0.250, 0.632), (-2.00, 0.330, 0.652),
+        (-1.80, 0.420, 0.692), (-1.60, 0.510, 0.745), (-1.40, 0.590, 0.822), (-1.20, 0.625, 0.876),
         (-1.00, 0.610, 0.935), (-0.80, 0.585, 0.995), (-0.63, 0.570, 1.045), (-0.40, 0.555, 1.100),
         (-0.10, 0.545, 1.138), (0.20, 0.535, 1.140), (0.45, 0.450, 1.130), (0.70, 0.310, 1.065),
         (0.95, 0.275, 1.000), (1.20, 0.270, 0.952), (1.45, 0.270, 0.915), (1.70, 0.270, 0.885),
         (1.95, 0.270, 0.852), (2.12, 0.270, 0.820), (2.27, 0.270, 0.792, 2.214)], kind=sp3))
     R.append(BL.Rail('P', [
         (-2.40, 0.245, 0.532, -2.395), (-2.33, 0.330, 0.585, -2.36), (-2.20, 0.450, 0.622, -2.23),
-        (-2.00, 0.540, 0.668), (-1.80, 0.610, 0.718), (-1.60, 0.665, 0.770), (-1.40, 0.700, 0.825),
+        (-2.00, 0.540, 0.660), (-1.80, 0.610, 0.705), (-1.60, 0.665, 0.762), (-1.40, 0.700, 0.825),
         (-1.20, 0.715, 0.872), (-1.00, 0.700, 0.925), (-0.80, 0.680, 0.980), (-0.63, 0.666, 1.025),
         (-0.40, 0.652, 1.075), (-0.10, 0.646, 1.100), (0.20, 0.640, 1.105), (0.45, 0.615, 1.095),
         (0.70, 0.560, 1.075), (0.95, 0.530, 1.045), (1.20, 0.520, 1.005), (1.45, 0.510, 0.965),
@@ -143,14 +143,14 @@ CLINE_SIDE = [(-0.935, 0.272), (-0.70, 0.279), (-0.40, 0.290), (0.00, 0.302), (0
 DLO = [(-1.10, 0.846), (-0.20, 0.848), (0.20, 0.862), (0.36, 0.900), (0.44, 0.975), (0.47, 1.06),
        (0.47, 1.30), (-1.20, 1.30)]
 # openings
-INTAKE_F = [(0.40, 0.470), (0.62, 0.488), (0.82, 0.472), (0.905, 0.420), (0.915, 0.300), (0.885, 0.215),
-            (0.62, 0.192), (0.40, 0.200), (0.365, 0.260), (0.365, 0.420)]
+INTAKE_F = [(0.40, 0.455), (0.62, 0.470), (0.80, 0.458), (0.895, 0.410), (0.912, 0.300), (0.885, 0.222),
+            (0.62, 0.200), (0.40, 0.208), (0.368, 0.262), (0.368, 0.410)]
 SIDE_INTAKE = [(0.14, 0.42), (0.45, 0.44), (0.62, 0.55), (0.69, 0.70), (0.66, 0.83), (0.50, 0.875), (0.36, 0.86)]
 SCOOP = [(0.07, 0.76), (0.40, 0.78), (0.43, 0.86), (0.43, 1.52), (0.40, 1.60), (0.07, 1.62), (0.05, 1.55),
          (0.05, 0.83)]
 
 
-def headlight_poly():
+def headlight_poly():  # noqa (defined below OPENINGS uses it lazily)
     """Slim lozenge in front view (x, z): inner end lower, tapered ends."""
     a = np.array([0.505, 0.585])
     b = np.array([0.915, 0.640])
@@ -161,6 +161,15 @@ def headlight_poly():
         pts_top.append((c[0], c[1] + h))
         pts_bot.append((c[0], c[1] - h * 0.85))
     return np.array(pts_top + pts_bot[::-1])
+
+
+OPENINGS = [
+    # key, polygon, projection plane, s window, t window, seed facing (see Inverter)
+    ('intake_F', INTAKE_F, 'front', (-2.40, -1.90), (4.0, 8.4), (1, -0.4)),
+    ('headlight', None, 'front', (-2.38, -1.88), (2.4, 5.6), (1, -0.3)),
+    ('side_intake', SIDE_INTAKE, 'side', (-0.20, 1.00), (3.5, 7.2), (0, 0.5)),
+    ('scoop', SCOOP, 'plan', (0.60, 1.80), (0.0, 2.6), (2, 0.5)),
+]
 
 
 # =====================================================================
@@ -182,15 +191,15 @@ def side_poly(poly):
     return lambda P: BL.poly_sdf(P[:, [1, 2]], poly)
 
 
+TW = 0.2       # metres per unit of t (approx.), for parameter-space regions
+LOOPS = {}
+
+
 def regions(skin):
     def nrm(s, t):
         return skin.normal(s, t)
     sdf_cl = side_poly(CLINE_SIDE + [(0.53, 1.30), (-0.40, -0.20)])
     sdf_dlo = side_poly(DLO)
-    sdf_int = BL.smooth_closed(INTAKE_F, 8)
-    sdf_head = headlight_poly()
-    sdf_side = BL.smooth_closed(SIDE_INTAKE, 8)
-    sdf_scoop = BL.smooth_closed(SCOOP, 8)
     reg = {}
     # ---- holes
     def arch(P, s, t, yc, zc, r):
@@ -198,12 +207,18 @@ def regions(skin):
         return mx(np.hypot(y - yc, z - zc) - r, 0.55 - x)
     reg['arch_F'] = R(lambda P, s, t: arch(P, s, t, YF, ZF, spec.ARCH_R_F))
     reg['arch_R'] = R(lambda P, s, t: arch(P, s, t, YR, ZR, spec.ARCH_R_R))
-    reg['intake_F'] = R(lambda P, s, t: mx(BL.poly_sdf(P[:, [0, 2]], sdf_int), s + 1.95, nrm(s, t)[:, 1] + 0.3))
-    reg['headlight'] = R(lambda P, s, t: mx(BL.poly_sdf(P[:, [0, 2]], sdf_head), s + 1.85, 0.5 - P[:, 2],
-                                            nrm(s, t)[:, 1] + 0.35))
-    reg['side_intake'] = R(lambda P, s, t: mx(BL.poly_sdf(P[:, [1, 2]], sdf_side), 0.6 - P[:, 0],
-                                              -0.1 - P[:, 1], P[:, 1] - 0.9))
-    reg['scoop'] = R(lambda P, s, t: mx(BL.poly_sdf(P[:, [0, 1]], sdf_scoop), 0.8 - P[:, 2]))
+    # openings: loop found on the skin by inverting a projection inside a parameter window,
+    # hole region = polygon in parameter space (unambiguous)
+    for key, poly, plane, srng, trng, fac in OPENINGS:
+        poly = headlight_poly() if poly is None else poly
+        inv = BL.Inverter(skin, plane, srng, trng, n=120, facing=fac)
+        pp = BL.resample_closed(BL.smooth_closed(poly, 8) if key != 'headlight' else poly, 72)
+        ls, lt = inv(pp)
+        res = np.abs(BL.proj(skin.eval(ls, lt), plane) - pp).max()
+        print('[body] opening %s inversion residual %.4f' % (key, res))
+        LOOPS[key] = (ls, lt)
+        st = np.stack([ls, lt * TW], 1)
+        reg[key] = R(lambda P, s, t, st=st: BL.poly_sdf(np.stack([s, t * TW], 1), st))
     # ---- panels (priority order)
     def ws(P, s, t):
         x, y, z = _xyz(P)
@@ -334,9 +349,10 @@ def liner(name, skin, key, coll):
     return ob
 
 
-def recess(name, skin, inv, poly2, depth, coll, direction=None, taper=0.15, n=64):
-    poly = BL.resample_closed(BL.smooth_closed(poly2, 8), n)
-    P, N, _ = BL.loop_on_skin(skin, inv, poly)
+def recess(name, skin, key, depth, coll, direction=None, taper=0.15):
+    ls, lt = LOOPS[key]
+    P = skin.eval(ls, lt)
+    N = skin.normal(ls, lt)
     P = P - N * 0.002
     ob = BL.tunnel(name, P, N, depth, coll=coll, taper=taper, steps=3, direction=direction)
     mats.assign(ob, 'plastic_black')
@@ -417,19 +433,16 @@ def build(ctx):
 
     # ---- recesses behind the openings
     anchors = {}
-    inv_front = BL.Inverter(skin, 'front', (-2.40, -1.85), (2.0, 8.8), n=120)
-    inv_side = BL.Inverter(skin, 'side', (-0.3, 1.0), (3.0, 7.6), n=110)
-    inv_plan = BL.Inverter(skin, 'plan', (0.6, 1.8), (0.0, 2.6), n=100)
-    ob, P, N = recess('Body_Recess_Intake_F_L', skin, inv_front, INTAKE_F, 0.10, coll, direction=(0, -1, 0))
+    ob, P, N = recess('Body_Recess_Intake_F_L', skin, 'intake_F', 0.10, coll, direction=(0, -1, 0))
     statics += [ob, geo.mirror_copy(ob, 'Body_Recess_Intake_F_R', coll)]
     anchors['intake_front_L'] = P.tolist()
-    ob, P, N = recess('Body_Recess_Headlight_L', skin, inv_front, headlight_poly(), 0.06, coll, taper=0.05)
+    ob, P, N = recess('Body_Recess_Headlight_L', skin, 'headlight', 0.06, coll, taper=0.05)
     statics += [ob, geo.mirror_copy(ob, 'Body_Recess_Headlight_R', coll)]
     anchors['headlight_L'] = dict(outline=P.tolist(), normal=N.mean(0).tolist())
-    ob, P, N = recess('Body_Recess_SideIntake_L', skin, inv_side, SIDE_INTAKE, 0.10, coll, direction=(1, 0, 0))
+    ob, P, N = recess('Body_Recess_SideIntake_L', skin, 'side_intake', 0.10, coll, direction=(1, 0, 0))
     statics += [ob, geo.mirror_copy(ob, 'Body_Recess_SideIntake_R', coll)]
     anchors['side_intake_L'] = P.tolist()
-    ob, P, N = recess('Body_Recess_Scoop_L', skin, inv_plan, SCOOP, 0.16, coll, direction=(0, 0, 1), taper=0.1)
+    ob, P, N = recess('Body_Recess_Scoop_L', skin, 'scoop', 0.16, coll, direction=(0, 0, 1), taper=0.1)
     statics += [ob, geo.mirror_copy(ob, 'Body_Recess_Scoop_R', coll)]
     anchors['deck_scoop_L'] = P.tolist()
     # horseshoe: the first skin column is its outline
