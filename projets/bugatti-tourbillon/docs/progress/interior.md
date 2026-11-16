@@ -43,3 +43,4 @@ Owner files: src/tb/parts/interior.py, src/tb/parts/interior_lib.py, out/scripts
   cluster larger (0.25 m) with window / subdials / label / triangular cut-outs; seats wider + higher bolsters + oval headrest slot; door card pull loop, pocket lid + Tourbillon script, carbon trim; screen portrait, arm, knob; buckle anchored on console.
 - Preview 211k tris. Renders suffix _r2 (sheet_r2, sheet_r2e dark, sheet_r2s steer/door).
 - Round 3: sill tread widened to x 0.80, matte carbon sill, tub walls leather (no black void), own emissive Interior_ClusterGlow / ScreenGlow / Ambient (x3 stronger), lamps 26/14/11 W (were 40/25/18 in r3 renders, slightly burnt, lowered). Checked in body: no pokes seen (door_dark_r3d, wind_r3, top_r3).
+- Round 4: headliner replaced by slim rails/header/rear strips; fit_to_shell() keeps roof/pillar/mirror parts >=15 mm inside glass/roof (Raycaster); verified by out/scripts/interior/glasscheck.py; sheet_r4.png dark door-open.
