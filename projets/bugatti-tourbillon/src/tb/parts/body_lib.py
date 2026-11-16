@@ -397,7 +397,11 @@ def mesh_region(skin, S, T, region, name, coll=None, offset=0.0, flip=False, ret
     SC, TC = np.meshgrid(Sc, Tc, indexing='ij')
     Pc = skin.eval(SC.ravel(), TC.ravel())
     fc = region(Pc, SC.ravel(), TC.ravel()).reshape(nS - 1, nT - 1)
-    keep = fc < 0
+    vin = fv < 0
+    n_in = (vin[:-1, :-1].astype(int) + vin[1:, :-1] + vin[:-1, 1:] + vin[1:, 1:])
+    # keep every cell that touches the region: all outline vertices are then outside
+    # and get snapped onto the boundary (no saw-tooth outline)
+    keep = (fc < 0) | (n_in >= 1)
     if keep.sum() < min_faces:
         return None
     used = np.zeros((nS, nT), bool)
