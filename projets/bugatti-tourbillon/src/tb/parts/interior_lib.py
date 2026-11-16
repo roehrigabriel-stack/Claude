@@ -54,7 +54,7 @@ def bake(obj, M):
 
 
 def mat(obj, name):
-    mats.assign(obj, name)
+    IM.assign(obj, name)
     return obj
 
 
@@ -427,7 +427,7 @@ def vent(prefix, coll, w, h, depth=0.02):
 # ----------------------------------------------------------------- own materials (never mutate the shared library)
 ALIAS = {'leather_light': 'Interior_LeatherPale', 'leather_dark': 'Interior_LeatherDark',
          'leather_slate': 'Interior_LeatherSlate', 'alcantara': 'Interior_Alcantara', 'carpet': 'Interior_Carpet',
-         'fabric_light': 'Interior_Fabric', 'stitch': 'Interior_Stitch', 'dash_top': 'Interior_DashTop', 'emit_interior': 'Interior_Ambient'}
+         'fabric_light': 'Interior_Fabric', 'stitch': 'Interior_Stitch', 'dash_top': 'Interior_DashTop', 'emit_cluster': 'Interior_ClusterGlow', 'emit_screen': 'Interior_ScreenGlow', 'emit_interior': 'Interior_Ambient'}
 
 
 def _bump(m, kind, scale, strength, dist):
@@ -491,7 +491,9 @@ def make_materials():
     nt.links.new(mr.outputs['Result'], mx.inputs['Factor'])
     nt.links.new(mx.outputs['Result'], b.inputs['Base Color'])
     mats.custom('Interior_Stitch', base_color='#b8d0e0', roughness=0.6)
-    mats.emissive('Interior_Ambient', '#46d6d0', 5.0, 'interior_lights')
+    mats.emissive('Interior_Ambient', '#6fe6e0', 16.0, 'interior_lights')
+    mats.emissive('Interior_ClusterGlow', '#e4f2ff', 9.0, 'cluster_glow')
+    mats.emissive('Interior_ScreenGlow', '#cfe8ff', 14.0, 'screen')
 
 
 class _IM:

@@ -131,7 +131,7 @@ def build_tub(K):
     if up and up[0].normal.z < 0:
         geo.flip_normals(tub)
     mats.assign(tub, 'carpet')
-    mats.assign_faces(tub, 'carbon_gloss', lambda c, p: abs(p.normal.x) > 0.6 and c.y > -0.95)
+    mats.assign_faces(tub, 'leather_dark', lambda c, p: abs(p.normal.x) > 0.6 and c.y > -0.95)
     mats.assign_faces(tub, 'leather_light', lambda c, p: abs(p.normal.x) > 0.6 and c.y <= -0.95)
     K.main.append(tub)
 
@@ -153,14 +153,14 @@ def build_tub(K):
     geo.transform_mesh(sill, Matrix.Identity(4))
     sill = geo.box('Interior_Sill_L', (0.16, sy1 - sy0, 0.06), (XSILL + 0.08, (sy0 + sy1) / 2, ZSILL - 0.03), coll)
     geo.mod_bevel(sill, 0.01, 3, 30)
-    mats.assign(sill, 'carbon_gloss')
-    tread = geo.box('Interior_SillTread_L', (0.10, (sy1 - sy0) * 0.78, 0.004),
-                    (XSILL + 0.075, (sy0 + sy1) / 2 - 0.02, ZSILL + 0.002), coll)
+    mats.assign(sill, 'carbon_matte')
+    tread = geo.box('Interior_SillTread_L', (0.115, (sy1 - sy0) * 0.78, 0.004),
+                    (XSILL + 0.1, (sy0 + sy1) / 2 - 0.02, ZSILL + 0.002), coll)
     geo.mod_bevel(tread, 0.0015, 2, 30)
     mats.assign(tread, 'aluminum_brushed')
     txt = L.text('Interior_SillText_L', 'BUGATTI', 0.032, 0.0006, coll, spacing=1.0) if False else \
         geo.text_mesh('Interior_SillText_L', 'B U G A T T I', size=0.03, extrude=0.0005, coll=coll)
-    geo.transform_mesh(txt, T(XSILL + 0.075, (sy0 + sy1) / 2 - 0.02, ZSILL + 0.0045) @ R('Z', 90))
+    geo.transform_mesh(txt, T(XSILL + 0.1, (sy0 + sy1) / 2 - 0.02, ZSILL + 0.0045) @ R('Z', 90))
     mats.assign(txt, 'steel_dark')
     for ob in (sill, tread, txt):
         K.main.append(ob)
@@ -1034,11 +1034,11 @@ def build_doors(K):
 def build_lights(K):
     import bpy
     coll = K.coll
-    spots = [('Interior_Lamp_Roof_L', (XS, HY - 0.12, ZHEAD - 0.02), 0.22, 0.10, 14.0),
-             ('Interior_Lamp_Roof_R', (-XS, HY - 0.12, ZHEAD - 0.02), 0.22, 0.10, 14.0),
-             ('Interior_Lamp_Foot_L', (XS, -0.86, 0.53), 0.16, 0.08, 9.0),
-             ('Interior_Lamp_Foot_R', (-XS, -0.86, 0.53), 0.16, 0.08, 9.0),
-             ('Interior_Lamp_Console', (0.0, -0.30, ZHEAD - 0.03), 0.12, 0.30, 6.0)]
+    spots = [('Interior_Lamp_Roof_L', (XS, HY - 0.12, ZHEAD - 0.02), 0.22, 0.10, 26.0),
+             ('Interior_Lamp_Roof_R', (-XS, HY - 0.12, ZHEAD - 0.02), 0.22, 0.10, 26.0),
+             ('Interior_Lamp_Foot_L', (XS, -0.86, 0.53), 0.16, 0.08, 14.0),
+             ('Interior_Lamp_Foot_R', (-XS, -0.86, 0.53), 0.16, 0.08, 14.0),
+             ('Interior_Lamp_Console', (0.0, -0.30, ZHEAD - 0.03), 0.12, 0.30, 11.0)]
     for name, loc, sx, sy, watts in spots:
         ld = bpy.data.lights.new(name, 'AREA')
         ld.shape = 'RECTANGLE'

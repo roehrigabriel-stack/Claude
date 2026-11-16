@@ -129,7 +129,7 @@ class Rail:
     tension: scalar or list of (s, value) knots (scales the section tangents at this rail).
     """
 
-    def __init__(self, name, knots, tension=1.0, kind='spline'):
+    def __init__(self, name, knots, tension=1.0, kind='spline', smooth=0.0):
         self.name = name
         if isinstance(kind, str):
             kind = (kind, kind, kind)
@@ -140,6 +140,19 @@ class Rail:
         ys = [k[3] if len(k) > 3 and k[3] is not None else k[0] for k in knots]
         self.fy = cls[1](ss, ys)
         self.fz = cls[2](ss, [k[2] for k in knots])
+        if smooth:
+            # fair the rail: dense samples, Gaussian smoothing along s (odd-reflected ends keep
+            # end values and slopes), re-interpolated by a C2 spline -> no knot wiggles
+            sd = np.linspace(ss[0], ss[-1], 241)
+            h = sd[1] - sd[0]
+            k = max(1, int(round(3 * smooth / h)))
+            g = np.exp(-0.5 * (np.arange(-k, k + 1) * h / smooth) ** 2)
+            g /= g.sum()
+            def fair(f):
+                v = f(sd)
+                pad = np.concatenate([2 * v[0] - v[k:0:-1], v, 2 * v[-1] - v[-2:-k - 2:-1]])
+                return Spline1D(sd, np.convolve(pad, g, mode='valid'))
+            self.fx, self.fy, self.fz = fair(self.fx), fair(self.fy), fair(self.fz)
         if isinstance(tension, (int, float)):
             self.ft = lambda s, v=float(tension): np.full_like(np.asarray(s, float), v)
         else:
