@@ -124,6 +124,7 @@ y_front = _pi([0.20, 0.40, 0.55, 0.65, 0.72, 0.76, 0.84, 1.00, 1.10, 1.25],
 cl_low = _pi([-1.20, -0.93, -0.50, 0.00, 0.30, 0.60, 1.00], [0.272, 0.272, 0.287, 0.302, 0.330, 0.360, 0.360])
 # door top edge (roof strip) in plan: x as a function of y
 x_strip = _pi([-1.30, -0.90, -0.60, -0.20, 0.20, 0.55], [0.660, 0.620, 0.578, 0.548, 0.505, 0.400])
+y_bump = _pi([0.15, 0.30, 0.45, 0.535], [-2.150, -2.110, -2.065, -2.030])
 # windshield: base (cowl) in plan, side edge in plan
 def y_cowl(x):
     return -1.545 + 0.29 * (np.asarray(x) / 0.655) ** 2
@@ -251,8 +252,9 @@ def regions(skin):
         x, y, z = _xyz(P)
         return np.minimum(mx(z - 0.300, 0.95 - y, 0.5 - x), mx(z - 0.48, 1.88 - y))
     def bumper(P, s, t):
+        # fascia only: the seam wraps the front corner on a slanted curve (no panel cut ahead of the wheel)
         x, y, z = _xyz(P)
-        return mx(s + 1.85, z - 0.535)
+        return mx(y - y_bump(z), z - 0.535)
     def flank(P, s, t):
         x, y, z = _xyz(P)
         return mx((t - 3.0) * TW, s + 1.15, 0.5 - z)

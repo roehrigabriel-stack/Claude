@@ -106,10 +106,10 @@ CABIN = dict(
 # component swings it outwards (conventional door). Butterfly = mostly +X with
 # some -Z. With the values below the rear-bottom corner of the door ends about
 # 0.65 m further out and 1.7 m above the ground when fully open.
-DOOR_OPEN_DEG = 68.0
+DOOR_OPEN_DEG = 75.0
 DOOR_HINGE_L = dict(
-    pivot=(0.800, -0.930, 0.760),
-    axis=(0.906, 0.000, -0.423),
+    pivot=(0.950, -1.050, 0.900),     # virtual axis found by the body agent's clearance search
+    axis=(0.857, 0.000, -0.514),
 )
 DOOR_Y_FRONT = -1.020   # front shut line of the door at the beltline (it runs down to y ~ -1.16 at z 0.70)
 DOOR_Y_REAR = 0.520     # rear shut line where it meets the roof

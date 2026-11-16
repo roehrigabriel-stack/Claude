@@ -1,6 +1,6 @@
 # Body shell: progress log
 
-## Status: stages A, B, C done (agent 2). Builds cleanly in preview (~160k tris) and final (~661k tris).
+## Status: stages A, B, C done (agent 2). Builds cleanly in preview (~170k tris) and final (~590k tris).
 - Shape: 9-rail half skin (body.py rails()), overlays out/renders/body/b3/sheet_all.png (side/rear/top) and
   a8 (front): within ~2 cm except the items under Known defects. Numeric check: out/scripts/body/check.py.
 - Panels, gaps (2 x 2.2 mm, dark solidify rims / inner faces), two-tone after A4, glazing, doors on hinges.
@@ -8,6 +8,20 @@
 - Liners close the wells (tube + 28 mm flange behind the arch edge + inner wall at x 0.52).
 - Door swing: out/scripts/body/door_check.py, spec hinge clears (max penetration 0 at 10..68 deg).
 - Anchors: ctx.data['body'] and out/renders/body/anchors.json (rewritten on every build).
+
+## Round 2 (after docs/reviews/full_r1.md)
+- Rails faired: body_lib.Rail(smooth=0.05) = Gaussian smoothing along s of dense samples, C2 re-fit
+  (SMOOTH in body.py). Removes the knot wiggles (fender tops, tail lip). Shut lines are Pchip curves.
+- Headlight opening = 0.42 x 0.08 rounded lozenge (x 0.50 -> 0.92, z 0.59 -> 0.632), anchor follows.
+- New panel Body_Bonnet_Flank (pale, sym): shut line exactly on rail H (t = 3, the crease) from the nose to
+  s = -1.15 (A-pillar base). Dark bonnet V kept (A4 is the authority). K tension 0.5 = firmer crowns.
+- Glazing: no solidify on glass (a solidified thin_glass pane shows total internal reflection on its back
+  face -> black). Canopy material Body_Glass_Roof (thin glass, darkness 0.45, created in body.py).
+- Deck scoops open (side walls only, no floor) so the engine plenums show.
+- Bumper seam wraps the front corner on the slanted curve y_bump(z) (no rectangular cut ahead of the wheel).
+- Door hinge proposal (out/scripts/body/door_search.py, render.py 'newhinge' flag):
+  pivot (0.95, -1.05, 0.90), axis (0.857, 0.0, -0.514), DOOR_OPEN_DEG 75 -> lean 9.7 deg outward,
+  lower-front corner clearance >= 2.6 cm over the whole swing, top of open door z 2.44.
 
 ## How it works
 - body_lib.Skin: half skin S(s, t), s ~ y, t = rail index (C V P H K W L B U). Column s=-2.40 = horseshoe
@@ -22,12 +36,12 @@
   (placeholder wheels, overlays, sheet_all.png); objs.py (per-object tris), door_check.py, check.py.
 
 ## Objects
-TB_Body: Body_Bonnet (dark V), Body_Fender_F_L/R, Body_Bumper_F, Body_Door_L/R (frame above belt dark),
+TB_Body: Body_Bonnet (dark V), Body_Bonnet_Flank (pale, crease shut line), Body_Fender_F_L/R, Body_Bumper_F, Body_Door_L/R (frame above belt dark),
 Body_Sill_L/R, Body_Lower_F, Body_Lower_R (carbon), Body_Roof (pillars + roof frame), Body_Quarter_L/R (inside
 the C), Body_Rear_L/R (haunch + buttress), Body_Deck, Body_Tail, Body_Spine, Body_CLine_L/R (static lower+rear
 leg), Body_CLine_Door_L/R (roof-edge part, on the doors), Body_Horseshoe_Lip, Body_Liner_FL/FR/RL/RR,
 Body_Recess_Horseshoe / _Intake_F_L/R / _Headlight_L/R / _SideIntake_L/R / _Scoop_L/R / _Rear.
-TB_Glass: Glass_Windshield, Glass_Roof, Glass_Side_L/R. Doors + side glass + door C-line under HINGE_Door_L/R.
+TB_Glass (single surface): Glass_Windshield, Glass_Roof (Body_Glass_Roof), Glass_Side_L/R. Doors + side glass + door C-line under HINGE_Door_L/R.
 
 ## Anchors (keys stable): horseshoe{outline,center}, headlight_L{outline,normal,inner_end,outer_end},
 intake_front_L, side_intake_L, deck_scoop_L, tail_edge (centre -> left corner), rear_opening, wing_seat
@@ -44,6 +58,7 @@ Right-hand items = mirror x.
 ## Known defects
 - Plan view: lower nose lip 4-8 cm wider than the drawing at y -2.35..-2.25; front-view fender side 2-4 cm
   narrow at z 0.75-0.80. Upper tail edge flat-ish (light bar curl only at the corners).
-- Fender crown / headlight-to-A-pillar crease softer than A4; bumper surround reads larger and paler than A4.
-- Some highlight waviness remains on the front fender tops near the headlights (rail interplay K/H/W).
+- A shallow hollow remains on the fender front top just above the headlight; small dark crack where the flank
+  shut line meets the headlight inner end.
+- Bumper surround reads larger and paler than A4.
 - Side intake behind the door is a deep black hole (A4 shows it dark; photos of launch cars hide it).
