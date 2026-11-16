@@ -265,7 +265,7 @@ def build_tyre(name, key, side, quality, coll):
     # ---- column positions across the tread band (q), with doubled columns at walls
     eps = 0.0004
     cols = set()
-    nb = 34 if final else 22
+    nb = 26 if final else 14
     for i in range(nb + 1):
         cols.add(round(-q_seam + 2 * q_seam * i / nb, 6))
     walls = []
@@ -280,7 +280,7 @@ def build_tyre(name, key, side, quality, coll):
         cols.add(round(e - eps / 2, 6))
         cols.add(round(e + eps / 2, 6))
     # extra columns near the fading slot ends over the shoulders
-    for q in np.linspace(T, q_seam, 6 if final else 4):
+    for q in np.linspace(T, q_seam, 5 if final else 3):
         cols.add(round(q, 6))
         cols.add(round(-q, 6))
     cols = sorted(c for c in cols if -q_seam - 1e-9 <= c <= q_seam + 1e-9)
@@ -298,7 +298,7 @@ def build_tyre(name, key, side, quality, coll):
     for fi, sl in enumerate(pat['slots']):
         edges += [(sl['t0'], fi, False), (sl['t0'] + epst, fi, True),
                   (sl['t1'] - epst, fi, True), (sl['t1'], fi, False)]
-    fill = [0.0, 0.42, 0.80] if final else [0.0, 0.42]
+    fill = [0.0, 0.42]
     tlist = sorted(set([round(t, 6) for t in fill] + [round(e[0], 6) for e in edges]))
 
     def inside_family(t, fi):
@@ -351,7 +351,7 @@ def build_tyre(name, key, side, quality, coll):
     _orient_outward(tread)
 
     # ---- sidewalls: revolve the rest of the profile (both halves)
-    nseg = 192 if final else 128
+    nseg = 160 if final else 96
     s_seam = q_seam
     ss = np.linspace(s_seam, prof.L, 34 if final else 22)
     half = [prof.at(s) for s in ss]
@@ -369,10 +369,13 @@ def build_tyre(name, key, side, quality, coll):
     letters = build_sidewall_text(name + '_Text', P, prof, side, coll, final)
 
     objs = [tread] + side_objs + letters
+    for ob in objs[:3]:
+        mats.assign(ob, 'rubber_tire')
+    for ob in objs[3:]:
+        mats.assign(ob, mats.custom('tyre_marking', base_color='#4A4B4D', metallic=0.0, roughness=0.55))
     for ob in objs:
         bake(ob, key, side)
     tyre = geo.join(objs, name)
-    mats.assign(tyre, 'rubber_tire')
     return tyre
 
 
@@ -440,6 +443,30 @@ def build_sidewall_text(name, P, prof, side, coll, final):
             me.flip_normals()   # u was reflected; bake() reflects again
         me.update()
         out.append(ob)
+    # chequered flag band on the upper sidewall (shoulder)
+    sub2 = ar[(ar[:, 1] > Rr + 0.030) & (ar[:, 1] < P['Ro'] - 0.012)]
+    o2 = np.argsort(sub2[:, 1])
+    r2, a2 = sub2[o2, 1], sub2[o2, 0]
+    rows = np.linspace(P['Ro'] - 0.034, P['Ro'] - 0.014, 4)
+    N = 270 if final else 150
+    verts, faces = [], []
+    for j in range(3):
+        for i in range(N):
+            if (i + j) % 2:
+                continue
+            quad = []
+            for (rr, ph) in ((rows[j], i), (rows[j + 1], i), (rows[j + 1], i + 1), (rows[j], i + 1)):
+                a = float(np.interp(rr, r2, a2)) + 0.0004
+                phi = TAU * ph / N
+                quad.append(len(verts))
+                verts.append((a, rr * math.cos(phi), rr * math.sin(phi)))
+            f = quad if side > 0 else quad[::-1]
+            v0, v1, v3 = (Vector(verts[f[0]]), Vector(verts[f[1]]), Vector(verts[f[3]]))
+            if (v1 - v0).cross(v3 - v0).x * side < 0:
+                f = f[::-1]
+            faces.append(f)
+    chk = geo.new_object(name + '_Chk', verts, faces, coll=coll)
+    out.append(chk)
     return out
 
 
@@ -483,7 +510,7 @@ def window_outlines(P, grow, design=None):
     # Y spokes (refs/web/wheel_closeup_02/03, blueprint_large): a stem from the hub forks
     # at rhoN into two arms; arms of neighbouring spokes run to the rim side by side with a
     # tall narrow window (W) between them; big pentagonal windows (U) inside each fork.
-    D = dict(rhoN=0.47, wA=0.092, wH0=0.175, wH1=0.115, rho_foot=5.0, rho_hub=0.300,
+    D = dict(rhoN=0.47, wA=0.125, wH0=0.20, wH1=0.15, rho_foot=5.0, rho_hub=0.300,
              rho_rim=0.962, foot_ang=9.0, rcW=0.050, rcU=0.050)
     if design:
         D.update(design)

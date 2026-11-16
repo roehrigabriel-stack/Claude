@@ -1,9 +1,16 @@
 """Body shell of the Bugatti Tourbillon (painted / carbon outer surfaces + glazing).
 
-See body_lib.py for the technique: one parametric half skin S(s, t) through
-longitudinal rails, panels cut out of it as regions with clean snapped edges.
-Rail knots come from the blueprint (refs/A3_blueprint.png, 199.5 px/m) measured by
-out/scripts/body/measure.py, plus docs/REFERENCE.md section 4.
+Technique (see body_lib.py): one parametric half skin S(s, t) through nine
+longitudinal rails (C centreline, V, P roof edge / buttress ridge, H, K fender
+crown / belt shoulder, W max width, L, B sill edge, U underside). Column s = S0
+is the outline of the horseshoe opening, column s = S1 the tail edge + rear
+opening. Panels are regions of that skin (signed functions in side / plan /
+front projections), meshed with snapped clean edges, shrunk by half the panel
+gap, given thickness by a solidify modifier whose rim / inner face use a dark
+material (dark shut lines). Openings are holes with recessed dark walls.
+
+Rail knots: blueprint (refs/A3_blueprint.png, 199.5 px/m, out/scripts/body/measure.py)
+plus docs/REFERENCE.md section 4. Numeric check: out/scripts/body/check.py.
 """
 import math
 import numpy as np
@@ -12,86 +19,82 @@ from tb import geo, mats, rig, spec
 from tb.parts import body_lib as BL
 
 S0 = -2.40          # first column: outline of the horseshoe opening
-S1 = 2.27           # last column: outline of the tail (light bar / rear opening)
-
-# ---------------------------------------------------------------- measured tables (blueprint)
-# side-view top silhouette (y, z) incl. the spine, docs/REFERENCE.md + measure.py
-SIDE_TOP = [(-2.30, 0.61), (-2.0, 0.745), (-1.70, 0.81), (-1.55, 0.835), (-1.45, 0.84), (-1.0, 0.98),
-            (-0.765, 1.05), (-0.532, 1.13), (-0.298, 1.17), (-0.064, 1.19), (0.169, 1.19), (0.40, 1.18),
-            (0.636, 1.15), (0.87, 1.10), (1.103, 1.05), (1.337, 1.00), (1.57, 0.95), (1.80, 0.92),
-            (2.04, 0.88), (2.18, 0.83)]
-# plan-view half width (y, x)
-PLAN_HALF = [(-2.40, 0.28), (-2.35, 0.395), (-2.30, 0.48), (-2.20, 0.63), (-2.10, 0.79), (-2.0, 0.89),
-             (-1.9, 0.965), (-1.8, 1.005), (-1.7, 1.02), (-1.1, 1.02), (-1.0, 1.01), (-0.8, 0.985),
-             (-0.2, 0.98), (0.1, 0.97), (0.3, 0.945), (0.5, 0.925), (0.7, 0.96), (0.9, 1.0), (1.05, 1.02),
-             (1.70, 1.02), (1.75, 1.0), (1.85, 0.93), (2.0, 0.85), (2.05, 0.845)]
+S1 = 2.27           # last column: tail edge + outline of the rear opening
+GAP = 0.0022        # half panel gap (m)
+YF, ZF = spec.Y_FRONT_AXLE, spec.WHEELS['FL'][2]
+YR, ZR = spec.Y_REAR_AXLE, spec.WHEELS['RL'][2]
 
 
+# =====================================================================
+# rails
+# =====================================================================
 def rails():
     R = []
-    # (s, x, z [, y])
+    sp3 = ('spline', 'spline', 'pchip')
     R.append(BL.Rail('C', [
-        (-2.40, 0.0, 0.575, -2.392), (-2.33, 0.0, 0.612), (-2.20, 0.0, 0.645), (-2.00, 0.0, 0.686),
-        (-1.80, 0.0, 0.733), (-1.65, 0.0, 0.775), (-1.54, 0.0, 0.808),
-        (-1.40, 0.0, 0.853), (-1.20, 0.0, 0.912), (-1.00, 0.0, 0.970), (-0.80, 0.0, 1.030),
-        (-0.63, 0.0, 1.075), (-0.45, 0.0, 1.122), (-0.25, 0.0, 1.155), (-0.06, 0.0, 1.175),
-        (0.17, 0.0, 1.177), (0.40, 0.0, 1.166), (0.636, 0.0, 1.137), (0.87, 0.0, 1.088),
-        (1.103, 0.0, 1.038), (1.337, 0.0, 0.988), (1.57, 0.0, 0.942), (1.80, 0.0, 0.908),
-        (2.04, 0.0, 0.868), (2.18, 0.0, 0.822), (2.27, 0.0, 0.782, 2.258)], kind=('spline', 'spline', 'pchip')))
+        (-2.40, 0.0, 0.575, -2.392), (-2.33, 0.0, 0.612), (-2.20, 0.0, 0.640), (-2.00, 0.0, 0.672),
+        (-1.80, 0.0, 0.716), (-1.65, 0.0, 0.762), (-1.54, 0.0, 0.808), (-1.40, 0.0, 0.856),
+        (-1.20, 0.0, 0.918), (-1.00, 0.0, 0.978), (-0.80, 0.0, 1.040), (-0.63, 0.0, 1.090),
+        (-0.45, 0.0, 1.135), (-0.25, 0.0, 1.163), (-0.06, 0.0, 1.179), (0.17, 0.0, 1.181),
+        (0.40, 0.0, 1.170), (0.636, 0.0, 1.140), (0.87, 0.0, 1.092), (1.10, 0.0, 1.043),
+        (1.34, 0.0, 0.985), (1.57, 0.0, 0.940), (1.80, 0.0, 0.908), (2.04, 0.0, 0.862),
+        (2.18, 0.0, 0.822), (2.27, 0.0, 0.795, 2.218)], kind=sp3))
     R.append(BL.Rail('V', [
-        (-2.40, 0.170, 0.565, -2.392), (-2.33, 0.215, 0.598, -2.34), (-2.20, 0.270, 0.633), (-2.00, 0.36, 0.678),
-        (-1.80, 0.45, 0.728), (-1.60, 0.54, 0.778), (-1.40, 0.61, 0.828), (-1.20, 0.645, 0.875),
-        (-1.00, 0.625, 0.933), (-0.80, 0.60, 0.993), (-0.63, 0.582, 1.040), (-0.40, 0.567, 1.098),
-        (-0.10, 0.557, 1.140), (0.20, 0.550, 1.143), (0.45, 0.530, 1.128), (0.70, 0.485, 1.090),
-        (0.95, 0.455, 1.035), (1.20, 0.443, 0.985), (1.45, 0.437, 0.935), (1.70, 0.425, 0.898),
-        (1.95, 0.405, 0.862), (2.12, 0.375, 0.822), (2.27, 0.340, 0.782, 2.24)], kind=('spline', 'spline', 'pchip')))
+        (-2.40, 0.170, 0.565, -2.392), (-2.33, 0.200, 0.600, -2.345), (-2.20, 0.250, 0.632), (-2.00, 0.330, 0.668),
+        (-1.80, 0.420, 0.712), (-1.60, 0.510, 0.764), (-1.40, 0.590, 0.822), (-1.20, 0.625, 0.876),
+        (-1.00, 0.610, 0.935), (-0.80, 0.585, 0.995), (-0.63, 0.570, 1.045), (-0.40, 0.555, 1.100),
+        (-0.10, 0.545, 1.138), (0.20, 0.535, 1.140), (0.45, 0.450, 1.130), (0.70, 0.310, 1.065),
+        (0.95, 0.275, 1.000), (1.20, 0.270, 0.952), (1.45, 0.270, 0.915), (1.70, 0.270, 0.885),
+        (1.95, 0.270, 0.852), (2.12, 0.270, 0.820), (2.27, 0.270, 0.792, 2.214)], kind=sp3))
     R.append(BL.Rail('P', [
-        (-2.40, 0.245, 0.532, -2.395), (-2.33, 0.36, 0.580, -2.36), (-2.20, 0.47, 0.620, -2.22),
-        (-2.00, 0.55, 0.660), (-1.80, 0.61, 0.700), (-1.60, 0.66, 0.755), (-1.40, 0.70, 0.825),
+        (-2.40, 0.245, 0.532, -2.395), (-2.33, 0.330, 0.585, -2.36), (-2.20, 0.450, 0.622, -2.23),
+        (-2.00, 0.540, 0.668), (-1.80, 0.610, 0.718), (-1.60, 0.665, 0.770), (-1.40, 0.700, 0.825),
         (-1.20, 0.715, 0.872), (-1.00, 0.700, 0.925), (-0.80, 0.680, 0.980), (-0.63, 0.666, 1.025),
-        (-0.40, 0.652, 1.075), (-0.10, 0.646, 1.100), (0.20, 0.640, 1.105), (0.45, 0.625, 1.090),
-        (0.70, 0.600, 1.060), (0.95, 0.562, 1.020), (1.20, 0.532, 0.975), (1.45, 0.510, 0.930),
-        (1.70, 0.490, 0.895), (1.95, 0.470, 0.860), (2.12, 0.450, 0.820), (2.27, 0.430, 0.780, 2.225)]))
+        (-0.40, 0.652, 1.075), (-0.10, 0.646, 1.100), (0.20, 0.640, 1.105), (0.45, 0.615, 1.095),
+        (0.70, 0.560, 1.075), (0.95, 0.530, 1.045), (1.20, 0.520, 1.005), (1.45, 0.510, 0.965),
+        (1.70, 0.500, 0.930), (1.95, 0.490, 0.890), (2.12, 0.480, 0.845), (2.27, 0.470, 0.800, 2.200)]))
     R.append(BL.Rail('H', [
-        (-2.40, 0.280, 0.475, -2.398), (-2.33, 0.52, 0.555, -2.34), (-2.20, 0.68, 0.630, -2.20),
-        (-2.00, 0.75, 0.700), (-1.80, 0.775, 0.755), (-1.60, 0.785, 0.800), (-1.40, 0.785, 0.835),
+        (-2.40, 0.280, 0.475, -2.398), (-2.33, 0.450, 0.555, -2.355), (-2.20, 0.620, 0.625, -2.23),
+        (-2.00, 0.720, 0.708), (-1.80, 0.765, 0.765), (-1.60, 0.780, 0.805), (-1.40, 0.785, 0.835),
         (-1.20, 0.778, 0.860), (-1.00, 0.785, 0.885), (-0.80, 0.770, 0.920), (-0.63, 0.760, 0.950),
-        (-0.40, 0.752, 0.975), (-0.10, 0.750, 0.980), (0.20, 0.748, 0.980), (0.45, 0.745, 0.970),
-        (0.70, 0.730, 0.940), (0.95, 0.690, 0.890), (1.20, 0.650, 0.860), (1.45, 0.620, 0.845),
-        (1.70, 0.590, 0.835), (1.95, 0.565, 0.825), (2.12, 0.560, 0.805), (2.27, 0.575, 0.780, 2.17)]))
+        (-0.40, 0.752, 0.975), (-0.10, 0.750, 0.980), (0.20, 0.748, 0.980), (0.45, 0.740, 0.970),
+        (0.70, 0.720, 0.950), (0.95, 0.690, 0.930), (1.20, 0.665, 0.915), (1.45, 0.645, 0.900),
+        (1.70, 0.625, 0.880), (1.95, 0.610, 0.860), (2.12, 0.600, 0.825), (2.27, 0.620, 0.792, 2.170)],
+        tension=[(-2.4, 0.8), (-1.6, 0.6), (-1.0, 0.8), (0.0, 1.0), (2.27, 1.0)]))
     R.append(BL.Rail('K', [
-        (-2.40, 0.290, 0.415, -2.400), (-2.30, 0.62, 0.575, -2.30), (-2.15, 0.82, 0.685, -2.16),
-        (-2.00, 0.870, 0.745), (-1.80, 0.885, 0.790), (-1.60, 0.885, 0.825), (-1.40, 0.880, 0.840),
-        (-1.20, 0.870, 0.845), (-1.00, 0.855, 0.843), (-0.80, 0.845, 0.840), (-0.50, 0.835, 0.838),
+        (-2.40, 0.290, 0.415, -2.400), (-2.30, 0.500, 0.575, -2.290), (-2.15, 0.720, 0.680, -2.150),
+        (-2.00, 0.840, 0.745), (-1.80, 0.880, 0.790), (-1.60, 0.885, 0.825), (-1.40, 0.880, 0.835),
+        (-1.20, 0.870, 0.840), (-1.00, 0.855, 0.843), (-0.80, 0.845, 0.840), (-0.50, 0.835, 0.838),
         (-0.20, 0.830, 0.837), (0.10, 0.830, 0.838), (0.35, 0.835, 0.845), (0.60, 0.860, 0.860),
-        (0.85, 0.885, 0.870), (1.10, 0.905, 0.890), (1.35, 0.915, 0.915), (1.60, 0.905, 0.925),
-        (1.85, 0.860, 0.910), (2.05, 0.800, 0.860, 2.06), (2.27, 0.760, 0.785, 2.10)]))
+        (0.85, 0.885, 0.875), (1.10, 0.905, 0.890), (1.35, 0.915, 0.910), (1.60, 0.905, 0.920),
+        (1.85, 0.860, 0.905), (2.05, 0.800, 0.860, 2.050), (2.27, 0.740, 0.790, 2.120)],
+        tension=[(-2.4, 0.9), (-1.0, 0.8), (0.0, 0.8), (1.0, 0.9), (2.27, 1.0)]))
     R.append(BL.Rail('W', [
-        (-2.40, 0.288, 0.355, -2.400), (-2.30, 0.66, 0.400, -2.33), (-2.15, 0.88, 0.460, -2.12),
-        (-2.00, 0.965, 0.500, -1.98), (-1.85, 1.005, 0.530, -1.85), (-1.60, 1.015, 0.560),
-        (-1.37, 1.015, 0.570), (-1.10, 1.005, 0.580), (-0.80, 0.990, 0.600), (-0.50, 0.985, 0.600),
-        (-0.20, 0.982, 0.600), (0.10, 0.972, 0.610), (0.35, 0.945, 0.630), (0.50, 0.935, 0.645),
-        (0.70, 0.955, 0.660), (0.90, 1.000, 0.670), (1.10, 1.018, 0.680), (1.37, 1.022, 0.680),
-        (1.60, 1.020, 0.680), (1.75, 1.000, 0.680), (1.90, 0.930, 0.680), (2.05, 0.870, 0.680, 2.03),
-        (2.27, 0.850, 0.660, 2.07)]))
+        (-2.40, 0.288, 0.355, -2.400), (-2.30, 0.480, 0.400, -2.300), (-2.20, 0.630, 0.440, -2.200),
+        (-2.10, 0.790, 0.480, -2.100), (-2.00, 0.895, 0.510, -2.000), (-1.90, 0.970, 0.535),
+        (-1.80, 1.012, 0.550), (-1.60, 1.028, 0.565), (-1.37, 1.030, 0.570), (-1.10, 1.015, 0.580),
+        (-0.80, 0.995, 0.600), (-0.50, 0.988, 0.600), (-0.20, 0.985, 0.600), (0.10, 0.975, 0.610),
+        (0.35, 0.948, 0.630), (0.50, 0.935, 0.645), (0.70, 0.958, 0.660), (0.90, 1.005, 0.670),
+        (1.10, 1.022, 0.680), (1.37, 1.028, 0.680), (1.60, 1.028, 0.680), (1.70, 1.022, 0.680),
+        (1.80, 0.975, 0.680), (1.90, 0.912, 0.680), (2.00, 0.862, 0.680, 2.000), (2.27, 0.800, 0.660, 2.100)]))
     R.append(BL.Rail('L', [
-        (-2.40, 0.270, 0.270, -2.400), (-2.30, 0.62, 0.250, -2.36), (-2.15, 0.86, 0.260, -2.17),
-        (-2.00, 0.960, 0.270, -2.02), (-1.85, 1.000, 0.280, -1.86), (-1.60, 1.005, 0.300),
-        (-1.37, 1.000, 0.320), (-1.10, 0.990, 0.340), (-0.80, 0.975, 0.350), (-0.40, 0.970, 0.350),
+        (-2.40, 0.280, 0.265, -2.400), (-2.30, 0.470, 0.250, -2.330), (-2.15, 0.730, 0.260, -2.170),
+        (-2.00, 0.900, 0.270, -2.020), (-1.85, 0.990, 0.280, -1.860), (-1.60, 1.010, 0.300),
+        (-1.37, 1.005, 0.320), (-1.10, 0.990, 0.340), (-0.80, 0.975, 0.350), (-0.40, 0.970, 0.350),
         (0.00, 0.965, 0.350), (0.40, 0.955, 0.360), (0.80, 0.980, 0.370), (1.10, 1.000, 0.370),
-        (1.37, 1.005, 0.370), (1.70, 0.990, 0.370), (1.90, 0.910, 0.400), (2.05, 0.870, 0.420, 2.00),
-        (2.27, 0.860, 0.420, 2.03)]))
+        (1.37, 1.005, 0.370), (1.70, 0.990, 0.370), (1.90, 0.905, 0.400), (2.05, 0.840, 0.420, 2.020),
+        (2.27, 0.800, 0.420, 2.080)]))
     R.append(BL.Rail('B', [
-        (-2.40, 0.170, 0.236, -2.400), (-2.30, 0.55, 0.190, -2.38), (-2.15, 0.80, 0.180, -2.22),
-        (-2.00, 0.930, 0.180, -2.05), (-1.85, 0.970, 0.180, -1.87), (-1.60, 0.980, 0.180),
-        (-1.37, 0.980, 0.170), (-1.10, 0.960, 0.150), (-0.80, 0.945, 0.135), (0.00, 0.940, 0.130),
+        (-2.40, 0.200, 0.215, -2.400), (-2.30, 0.450, 0.190, -2.370), (-2.15, 0.720, 0.180, -2.210),
+        (-2.00, 0.880, 0.180, -2.050), (-1.85, 0.960, 0.180, -1.870), (-1.60, 0.975, 0.180),
+        (-1.37, 0.975, 0.170), (-1.10, 0.960, 0.150), (-0.80, 0.945, 0.135), (0.00, 0.940, 0.130),
         (0.80, 0.950, 0.140), (1.10, 0.970, 0.170), (1.37, 0.980, 0.200), (1.70, 0.960, 0.240),
-        (1.90, 0.890, 0.260), (2.05, 0.860, 0.270, 2.00), (2.27, 0.850, 0.270, 2.02)]))
+        (1.90, 0.890, 0.260), (2.05, 0.840, 0.270, 2.000), (2.27, 0.790, 0.270, 2.060)]))
     R.append(BL.Rail('U', [
-        (-2.40, 0.000, 0.234, -2.400), (-2.30, 0.50, 0.170, -2.36), (-2.15, 0.76, 0.160, -2.18),
-        (-2.00, 0.890, 0.160, -2.02), (-1.85, 0.930, 0.160, -1.86), (-1.37, 0.940, 0.155),
-        (-1.10, 0.920, 0.135), (-0.80, 0.900, 0.120), (0.00, 0.895, 0.115), (0.80, 0.905, 0.125),
-        (1.37, 0.940, 0.190), (1.90, 0.850, 0.250), (2.05, 0.820, 0.255, 1.99), (2.27, 0.810, 0.255, 2.00)]))
+        (-2.40, 0.000, 0.212, -2.400), (-2.30, 0.420, 0.170, -2.370), (-2.15, 0.690, 0.160, -2.200),
+        (-2.00, 0.850, 0.160, -2.030), (-1.85, 0.920, 0.160, -1.870), (-1.37, 0.935, 0.155),
+        (-1.10, 0.915, 0.135), (-0.80, 0.900, 0.120), (0.00, 0.895, 0.115), (0.80, 0.905, 0.125),
+        (1.37, 0.940, 0.190), (1.90, 0.850, 0.250), (2.05, 0.810, 0.255, 1.990), (2.27, 0.750, 0.255, 2.040)]))
     return R
 
 
@@ -99,15 +102,393 @@ def make_skin():
     return BL.Skin(rails(), S0, S1)
 
 
+# =====================================================================
+# shut lines / feature curves (left side, +X)
+# =====================================================================
+def _pi(xs, ys):
+    xs = np.asarray(xs, float)
+    ys = np.asarray(ys, float)
+    return lambda q: np.interp(q, xs, ys)
+
+
+# door + front-fender rear edge in side view: y as a function of z
+y_front = _pi([0.20, 0.40, 0.55, 0.65, 0.72, 0.76, 0.84, 1.00, 1.10, 1.25],
+              [-0.935, -0.935, -0.982, -1.060, -1.115, -1.120, -1.020, -0.760, -0.600, -0.420])
+# C-line lower leg = door bottom / sill top: z as a function of y
+cl_low = _pi([-1.20, -0.93, -0.50, 0.00, 0.30, 0.60, 1.00], [0.272, 0.272, 0.287, 0.302, 0.330, 0.360, 0.360])
+# door top edge (roof strip) in plan: x as a function of y
+x_strip = _pi([-1.30, -0.90, -0.60, -0.20, 0.20, 0.55], [0.660, 0.620, 0.578, 0.548, 0.505, 0.400])
+# windshield: base (cowl) in plan, side edge in plan
+def y_cowl(x):
+    return -1.545 + 0.29 * (np.asarray(x) / 0.655) ** 2
+x_ws = _pi([-1.26, -0.63], [0.655, 0.552])
+# glass roof canopy outer edge in plan
+x_can = _pi([-0.63, -0.20, 0.20, 0.45, 0.60], [0.440, 0.430, 0.395, 0.300, 0.120])
+# bonnet centre V edge in plan
+x_v = _pi([-2.40, -2.20, -1.80, -1.50, -1.30, -1.20], [0.130, 0.170, 0.320, 0.480, 0.620, 0.680])
+# engine-deck edge (inside the buttress ridge) in plan
+x_bi = _pi([0.55, 1.00, 1.50, 1.98], [0.430, 0.480, 0.480, 0.460])
+
+
+def door_rear(z):
+    (y0, z0), (y1, z1) = spec.DOOR_REAR_CUT
+    t = np.clip((np.asarray(z) - z0) / (z1 - z0), 0.0, 1.0)
+    return y0 + (y1 - y0) * t
+
+
+# C-line static path (lower leg + rear leg), side view (y, z)
+CLINE_SIDE = [(-0.935, 0.272), (-0.70, 0.279), (-0.40, 0.290), (0.00, 0.302), (0.30, 0.330), (0.52, 0.405),
+              (0.68, 0.540), (0.770, 0.720), (0.775, 0.880), (0.705, 1.000), (0.600, 1.075), (0.500, 1.110)]
+# side window opening (DLO) in side view, further clipped by the door frame
+DLO = [(-1.10, 0.846), (-0.20, 0.848), (0.20, 0.862), (0.36, 0.900), (0.44, 0.975), (0.47, 1.06),
+       (0.47, 1.30), (-1.20, 1.30)]
+# openings
+INTAKE_F = [(0.40, 0.470), (0.62, 0.488), (0.82, 0.472), (0.905, 0.420), (0.915, 0.300), (0.885, 0.215),
+            (0.62, 0.192), (0.40, 0.200), (0.365, 0.260), (0.365, 0.420)]
+SIDE_INTAKE = [(0.14, 0.42), (0.45, 0.44), (0.62, 0.55), (0.69, 0.70), (0.66, 0.83), (0.50, 0.875), (0.36, 0.86)]
+SCOOP = [(0.07, 0.76), (0.40, 0.78), (0.43, 0.86), (0.43, 1.52), (0.40, 1.60), (0.07, 1.62), (0.05, 1.55),
+         (0.05, 0.83)]
+
+
+def headlight_poly():
+    """Slim lozenge in front view (x, z): inner end lower, tapered ends."""
+    a = np.array([0.505, 0.585])
+    b = np.array([0.915, 0.640])
+    pts_top, pts_bot = [], []
+    for u in np.linspace(0, 1, 9):
+        c = a + (b - a) * u
+        h = 0.036 * math.sin(math.pi * (0.08 + 0.84 * u)) ** 0.45
+        pts_top.append((c[0], c[1] + h))
+        pts_bot.append((c[0], c[1] - h * 0.85))
+    return np.array(pts_top + pts_bot[::-1])
+
+
+# =====================================================================
+# regions
+# =====================================================================
+R = BL.Region
+
+
+def _xyz(P):
+    return P[:, 0], P[:, 1], P[:, 2]
+
+
+def mx(*fs):
+    return np.maximum.reduce(fs)
+
+
+def side_poly(poly):
+    poly = BL.smooth_closed(poly, 8) if len(poly) > 4 else np.asarray(poly, float)
+    return lambda P: BL.poly_sdf(P[:, [1, 2]], poly)
+
+
+def regions():
+    sdf_cl = side_poly(CLINE_SIDE + [(0.53, 1.30), (-0.40, -0.20)])
+    sdf_dlo = side_poly(DLO)
+    sdf_int = BL.smooth_closed(INTAKE_F, 8)
+    sdf_head = headlight_poly()
+    sdf_side = BL.smooth_closed(SIDE_INTAKE, 8)
+    sdf_scoop = BL.smooth_closed(SCOOP, 8)
+    reg = {}
+    # ---- holes
+    def arch(P, s, t, yc, zc, r):
+        x, y, z = _xyz(P)
+        return mx(np.hypot(y - yc, z - zc) - r, 0.55 - x)
+    reg['arch_F'] = R(lambda P, s, t: arch(P, s, t, YF, ZF, spec.ARCH_R_F))
+    reg['arch_R'] = R(lambda P, s, t: arch(P, s, t, YR, ZR, spec.ARCH_R_R))
+    reg['intake_F'] = R(lambda P, s, t: mx(BL.poly_sdf(P[:, [0, 2]], sdf_int), s + 1.95))
+    reg['headlight'] = R(lambda P, s, t: mx(BL.poly_sdf(P[:, [0, 2]], sdf_head), s + 1.85, 0.5 - P[:, 2]))
+    reg['side_intake'] = R(lambda P, s, t: mx(BL.poly_sdf(P[:, [1, 2]], sdf_side), 0.6 - P[:, 0],
+                                              -0.1 - P[:, 1], P[:, 1] - 0.9))
+    reg['scoop'] = R(lambda P, s, t: mx(BL.poly_sdf(P[:, [0, 1]], sdf_scoop), 0.8 - P[:, 2]))
+    # ---- panels (priority order)
+    def ws(P, s, t):
+        x, y, z = _xyz(P)
+        return mx(y_cowl(x) - y, y + 0.630, x - x_ws(y), 0.6 - z)
+    def canopy(P, s, t):
+        x, y, z = _xyz(P)
+        return mx(-0.622 - y, y - 0.600, x - x_can(y), 0.9 - z)
+    def door(P, s, t):
+        x, y, z = _xyz(P)
+        return mx(y_front(z) - y, y - door_rear(z), cl_low(y) - z, x_strip(y) - x, 0.4 - x, z - 1.25)
+    def side_glass(P, s, t):
+        x, y, z = _xyz(P)
+        return mx(sdf_dlo(P), y - door_rear(z) + 0.030, y_front(z) + 0.035 - y, x_strip(y) + 0.035 - x,
+                  0.4 - x)
+    def lower_side(P, s, t):
+        x, y, z = _xyz(P)
+        return mx(z - cl_low(y), -1.05 - y, y - 0.95, 0.55 - x)
+    def lower_front(P, s, t):
+        x, y, z = _xyz(P)
+        return mx(z - 0.200, s + 1.95)
+    def lower_rear(P, s, t):
+        x, y, z = _xyz(P)
+        return np.minimum(mx(z - 0.300, 0.95 - y, 0.5 - x), mx(z - 0.48, 1.88 - y))
+    def bumper(P, s, t):
+        x, y, z = _xyz(P)
+        return mx(s + 1.85, z - 0.535)
+    def bonnet(P, s, t):
+        x, y, z = _xyz(P)
+        return mx(x - x_v(y), y - y_cowl(x), 0.55 - z, y + 1.20)
+    def roof(P, s, t):
+        x, y, z = _xyz(P)
+        return mx(0.84 - z, x - 0.80, -1.40 - y, y - 0.75)
+    def fender(P, s, t):
+        x, y, z = _xyz(P)
+        return mx(y - y_front(z), y + 0.88)
+    def quarter(P, s, t):
+        x, y, z = _xyz(P)
+        return mx(sdf_cl(P), door_rear(z) - y, 0.45 - x)
+    def deck(P, s, t):
+        x, y, z = _xyz(P)
+        return mx(x - x_bi(y), 0.55 - y, y - 1.96, 0.8 - z)
+    def tail(P, s, t):
+        x, y, z = _xyz(P)
+        return mx(1.96 - y, 0.55 - z, x - 0.70)
+    for k, f in list(locals().items()):
+        if k in ('ws', 'canopy', 'door', 'side_glass', 'lower_side', 'lower_front', 'lower_rear', 'bumper',
+                 'bonnet', 'roof', 'fender', 'quarter', 'deck', 'tail'):
+            reg[k] = R(f)
+    return reg
+
+
+HOLES = ['arch_F', 'arch_R', 'intake_F', 'headlight', 'side_intake', 'scoop']
+# (name, region key, material, mirror mode 'sym' | 'pair', kind)
+PANELS = [
+    ('Glass_Windshield', 'ws', 'glass', 'sym', 'glass'),
+    ('Glass_Roof', 'canopy', 'glass_dark', 'sym', 'glass'),
+    ('Glass_Side_L', 'side_glass', 'glass', 'pair', 'glass_door'),
+    ('Body_Door_L', 'door', 'paint_primary', 'pair', 'door'),
+    ('Body_Sill_L', 'lower_side', 'carbon_gloss', 'pair', 'panel'),
+    ('Body_Lower_F', 'lower_front', 'carbon_gloss', 'sym', 'panel'),
+    ('Body_Lower_R', 'lower_rear', 'carbon_gloss', 'sym', 'panel'),
+    ('Body_Bumper_F', 'bumper', 'paint_primary', 'sym', 'panel'),
+    ('Body_Bonnet', 'bonnet', 'paint_secondary', 'sym', 'panel'),
+    ('Body_Roof', 'roof', 'paint_secondary', 'sym', 'panel'),
+    ('Body_Fender_F_L', 'fender', 'paint_primary', 'pair', 'panel'),
+    ('Body_Quarter_L', 'quarter', 'paint_primary', 'pair', 'panel'),
+    ('Body_Deck', 'deck', 'paint_secondary', 'sym', 'panel'),
+    ('Body_Tail', 'tail', 'paint_secondary', 'sym', 'panel'),
+    ('Body_Rear_L', None, 'paint_secondary', 'pair', 'panel'),
+]
+
+
+# =====================================================================
+# geometry helpers
+# =====================================================================
+def rib(name, P, N, half_w, height, coll, n_prof=9, sink=0.004):
+    """Raised rounded rib along a surface path P (n,3) with surface normals N."""
+    P = np.asarray(P, float)
+    N = np.asarray(N, float)
+    T = np.gradient(P, axis=0)
+    T /= np.linalg.norm(T, axis=1)[:, None] + 1e-12
+    B = np.cross(T, N)
+    B /= np.linalg.norm(B, axis=1)[:, None] + 1e-12
+    h = np.broadcast_to(np.asarray(height, float), (len(P),))
+    prof = [(-half_w, -sink)]
+    for a in np.linspace(math.pi, 0, n_prof):
+        prof.append((half_w * math.cos(a), math.sin(a)))
+    prof.append((half_w, -sink))
+    m = len(prof)
+    V = []
+    for i in range(len(P)):
+        for (u, v) in prof:
+            vv = v * h[i] if v >= 0 else v
+            V.append(P[i] + B[i] * u + N[i] * vv)
+    F = []
+    for i in range(len(P) - 1):
+        for j in range(m):
+            j2 = (j + 1) % m
+            F.append([i * m + j, i * m + j2, (i + 1) * m + j2, (i + 1) * m + j])
+    F.append(list(range(m))[::-1])
+    F.append([(len(P) - 1) * m + j for j in range(m)])
+    ob = geo.new_object(name, V, F, coll=coll, smooth=True, sharp_angle=70.0)
+    geo.recalc_normals(ob)
+    return ob
+
+
+def liner(name, skin, key, coll):
+    x_w, yc, zc = spec.WHEELS[key]
+    r = (spec.ARCH_R_F if key[0] == 'F' else spec.ARCH_R_R) + 0.004
+    a0 = math.asin(max(-0.95, (0.125 - zc) / r))
+    ang = np.linspace(math.pi - a0, a0, 56)      # front-bottom -> over the top -> rear-bottom
+    ys = yc + r * np.cos(ang)
+    zs = zc + r * np.sin(ang)
+    inv = BL.Inverter(skin, 'side', (yc - 0.6, yc + 0.6), (4.0, 8.9), n=90)
+    s, t = inv(np.stack([ys, zs], 1))
+    xo = skin.eval(s, t)[:, 0] - 0.006
+    xi = 0.52
+    nx = 6
+    V = []
+    for i in range(len(ang)):
+        for j in range(nx):
+            u = j / (nx - 1)
+            V.append((xi + (xo[i] - xi) * u, ys[i], zs[i]))
+    F = [[i * nx + j, i * nx + j + 1, (i + 1) * nx + j + 1, (i + 1) * nx + j]
+         for i in range(len(ang) - 1) for j in range(nx - 1)]
+    ob = geo.new_object(name, V, F, coll=coll, smooth=True, sharp_angle=None)
+    mats.assign(ob, 'plastic_black')
+    return ob
+
+
+def recess(name, skin, inv, poly2, depth, coll, direction=None, taper=0.15, n=64):
+    poly = BL.resample_closed(BL.smooth_closed(poly2, 8), n)
+    P, N, _ = BL.loop_on_skin(skin, inv, poly)
+    P = P - N * 0.002
+    ob = BL.tunnel(name, P, N, depth, coll=coll, taper=taper, steps=3, direction=direction)
+    mats.assign(ob, 'plastic_black')
+    return ob, P, N
+
+
+def _solid(ob, thick, inner='plastic_black'):
+    mats.assign(ob, inner, append=True)
+    m = geo.mod_solidify(ob, thick, offset=-1.0)
+    m.material_offset = 1
+    m.material_offset_rim = 1
+    return m
+
+
+# =====================================================================
+# build
+# =====================================================================
 def build(ctx):
     coll = ctx.collection('Body')
+    gcoll = ctx.collection('Glass')
     root = ctx.module_root('Body')
     skin = make_skin()
-    ds = 0.012 if ctx.final() else 0.025
+    final = ctx.final()
+    ds = 0.014 if final else 0.024
     S = skin.column_params(ds)
     T = skin.row_params(ds)
-    ob = BL.mesh_region(skin, S, T, BL.R_all(), 'Body_Skin', coll)
-    geo.mod_mirror(ob)
-    mats.assign(ob, 'paint_primary')
-    rig.adopt([ob], root)
-    ctx.data['body'] = {}
+    reg = regions()
+    holes = None
+    for h in HOLES:
+        holes = reg[h] if holes is None else (holes | reg[h])
+    taken = None
+    statics, door_parts = [], []
+    made = {}
+    for name, key, mat, mode, kind in PANELS:
+        own = BL.R_all() if key is None else reg[key]
+        r = own - holes
+        if taken is not None:
+            r = r - taken
+        taken = own if taken is None else (taken | own)
+        ob = BL.mesh_region(skin, S, T, r.grow(-GAP), name, gcoll if kind.startswith('glass') else coll)
+        if ob is None:
+            print('[body] empty panel', name)
+            continue
+        mats.assign(ob, mat)
+        if kind.startswith('glass'):
+            m = geo.mod_solidify(ob, 0.005, offset=-1.0)
+        elif kind == 'door':
+            _solid(ob, 0.035, 'carbon_matte')
+        else:
+            _solid(ob, 0.004)
+        if mode == 'sym':
+            mir = geo.mod_mirror(ob)
+            bpy_move_first(ob, mir)
+            statics.append(ob)
+        else:
+            mirror = geo.mirror_copy(ob, name[:-2] + '_R', gcoll if kind.startswith('glass') else coll)
+            if kind in ('door', 'glass_door'):
+                door_parts.append((ob, 'L'))
+                door_parts.append((mirror, 'R'))
+            else:
+                statics += [ob, mirror]
+        made[name] = ob
+
+    # ---- inner dark backing behind every gap (not behind glass / doors / holes)
+    back_r = BL.R_all() - holes - reg['ws'] - reg['canopy'] - reg['door']
+    Sb = skin.column_params(0.04)
+    Tb = skin.row_params(0.04)
+    back = BL.mesh_region(skin, Sb, Tb, back_r.grow(0.004), 'Body_Recess_Inner', coll, offset=-0.012)
+    mats.assign(back, 'plastic_black')
+    geo.mod_mirror(back)
+    statics.append(back)
+
+    # ---- wheel-arch liners
+    for key in ('FL', 'RL'):
+        ob = liner('Body_Liner_' + key, skin, key, coll)
+        statics += [ob, geo.mirror_copy(ob, 'Body_Liner_' + key[0] + 'R', coll)]
+
+    # ---- recesses behind the openings
+    anchors = {}
+    inv_front = BL.Inverter(skin, 'front', (-2.40, -1.85), (2.0, 8.8), n=120)
+    inv_side = BL.Inverter(skin, 'side', (-0.3, 1.0), (3.0, 7.6), n=110)
+    inv_plan = BL.Inverter(skin, 'plan', (0.6, 1.8), (0.0, 2.6), n=100)
+    ob, P, N = recess('Body_Recess_Intake_F_L', skin, inv_front, INTAKE_F, 0.10, coll, direction=(0, -1, 0))
+    statics += [ob, geo.mirror_copy(ob, 'Body_Recess_Intake_F_R', coll)]
+    anchors['intake_front_L'] = P.tolist()
+    ob, P, N = recess('Body_Recess_Headlight_L', skin, inv_front, headlight_poly(), 0.06, coll, taper=0.05)
+    statics += [ob, geo.mirror_copy(ob, 'Body_Recess_Headlight_R', coll)]
+    anchors['headlight_L'] = dict(outline=P.tolist(), normal=N.mean(0).tolist())
+    ob, P, N = recess('Body_Recess_SideIntake_L', skin, inv_side, SIDE_INTAKE, 0.10, coll, direction=(1, 0, 0))
+    statics += [ob, geo.mirror_copy(ob, 'Body_Recess_SideIntake_R', coll)]
+    anchors['side_intake_L'] = P.tolist()
+    ob, P, N = recess('Body_Recess_Scoop_L', skin, inv_plan, SCOOP, 0.16, coll, direction=(0, 0, 1), taper=0.1)
+    statics += [ob, geo.mirror_copy(ob, 'Body_Recess_Scoop_R', coll)]
+    anchors['deck_scoop_L'] = P.tolist()
+    # horseshoe: the first skin column is its outline
+    tt = np.linspace(0, skin.K, 40)
+    hl = skin.eval(np.full_like(tt, S0), tt)
+    hs = np.vstack([hl, (hl[::-1] * [-1, 1, 1])[1:-1]])
+    ob = BL.tunnel('Body_Recess_Horseshoe', hs, None, 0.09, coll=coll, taper=0.06, direction=(0, -1, 0))
+    mats.assign(ob, 'plastic_black')
+    statics.append(ob)
+    anchors['horseshoe'] = dict(outline=hs.tolist(), center=hs.mean(0).tolist())
+    # rear: last column closes with a dark wall
+    rl = skin.eval(np.full_like(tt, S1), tt)
+    rs = np.vstack([rl, (rl[::-1] * [-1, 1, 1])])
+    ob = BL.tunnel('Body_Recess_Rear', rs, None, 0.07, coll=coll, taper=0.03, direction=(0, 1, 0))
+    mats.assign(ob, 'plastic_black')
+    statics.append(ob)
+    anchors['rear_opening'] = rs.tolist()
+
+    # ---- spine rib on the centreline
+    ss = np.linspace(S0 + 0.012, S1 - 0.004, 400 if final else 220)
+    Pc = skin.eval(ss, np.zeros_like(ss))
+    Nc = skin.normal(ss, np.zeros_like(ss))
+    hgt = np.interp(ss, [-2.4, -2.2, -1.6, -0.6, 0.6, 0.9, 1.9, 2.15, 2.27],
+                    [0.004, 0.009, 0.009, 0.007, 0.008, 0.016, 0.016, 0.010, 0.006])
+    ob = rib('Body_Spine', Pc, Nc, 0.009, hgt, coll)
+    mats.assign(ob, 'paint_secondary')
+    statics.append(ob)
+
+    # ---- C-line trims
+    cs = BL.resample_open(BL.smooth_open(CLINE_SIDE, 10), 160)
+    inv_cl = BL.Inverter(skin, 'side', (-1.1, 0.9), (1.5, 7.8), n=130)
+    s_, t_ = inv_cl(cs)
+    P = skin.eval(s_, t_)
+    N = skin.normal(s_, t_)
+    ob = rib('Body_CLine_L', P + N * 0.0005, N, 0.0048, 0.0025, coll, n_prof=7)
+    mats.assign(ob, 'aluminum_polished')
+    statics += [ob, geo.mirror_copy(ob, 'Body_CLine_R', coll)]
+    yy = np.linspace(-1.00, 0.47, 120)
+    inv_top = BL.Inverter(skin, 'plan', (-1.1, 0.6), (1.0, 3.6), n=110)
+    s_, t_ = inv_top(np.stack([x_strip(yy) + 0.016, yy], 1))
+    P = skin.eval(s_, t_)
+    N = skin.normal(s_, t_)
+    ob = rib('Body_CLine_Door_L', P + N * 0.0005, N, 0.0048, 0.0025, coll, n_prof=7)
+    mats.assign(ob, 'aluminum_polished')
+    door_parts += [(ob, 'L'), (geo.mirror_copy(ob, 'Body_CLine_Door_R', coll), 'R')]
+
+    # ---- parenting
+    rig.adopt(statics, root)
+    for ob, side in door_parts:
+        geo.parent(ob, rig.door_hinge(side))
+
+    # ---- anchors for other modules (world coordinates)
+    anchors.update(publish_anchors(skin))
+    ctx.data['body'] = anchors
+
+
+def bpy_move_first(ob, mod):
+    import bpy
+    with bpy.context.temp_override(object=ob):
+        bpy.ops.object.modifier_move_to_index(modifier=mod.name, index=0)
+
+
+def publish_anchors(skin):
+    a = {}
+    a['door_rear_cut'] = [list(p) for p in spec.DOOR_REAR_CUT]
+    return a

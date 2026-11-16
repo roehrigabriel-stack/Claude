@@ -42,7 +42,8 @@ TILT = math.radians(C['steering_tilt'])
 RWHEEL = C['steering_diameter'] / 2.0
 
 # ---- own constants (derived offsets) ----
-Y_DASH_FRONT = -1.25                 # dashboard top reaches under the windshield base
+Y_DASH_FRONT = -1.22                 # dashboard front edge at the A-pillars
+Y_DASH_CTR = spec.Y_COWL + 0.03      # dashboard front edge on the centreline (under the cowl)
 X_DASH_END = XSILL + 0.025           # dashboard wing ends just inside the door card
 Y_HEADER_IN = spec.Y_HEADER - 0.01   # front edge of the headliner
 Z_HEAD_REAR = ZHEAD - 0.05           # headliner height at the bulkhead (roof falls)
@@ -51,7 +52,7 @@ PLAN_REAR = 0.84                     # width factor at the bulkhead
 SEAT_W = 0.176                       # seat cushion half width (tunnel and sill limit it)
 DOOR_X_OUT = XBELT + 0.03            # door card outer face
 DOOR_Y0 = spec.DOOR_Y_FRONT + 0.05
-DOOR_Y1 = spec.DOOR_Y_REAR - 0.05
+DOOR_Y1 = 0.42
 SCREEN_HINGE_Y = YDR - 0.192         # pop-up screen hinge line (front edge of its lid)
 SCREEN_LEN = 0.158
 SCREEN_HW = 0.088
@@ -427,13 +428,14 @@ def dash_profile(x):
     te = ss(0.42, X_DASH_END, ax)                 # outer end: the wing drops towards the door
     tc = 1.0 - ss(0.10, 0.24, ax)                 # centre: blends into the console spine
     top = ZDT
+    yf = geo.lerp(Y_DASH_CTR, Y_DASH_FRONT, ss(0.12, 0.60, ax))   # front edge: deep on the centreline, back at the A-pillars
     yr = YDR + 0.004 * te
     lip = 0.600 - 0.065 * te - 0.02 * tc
-    pts = [(Y_DASH_FRONT, top - 0.045), (-1.10, top - 0.016), (-0.92, top - 0.004), (-0.76, top), (-0.64, top - 0.0015),
+    pts = [(yf, top - 0.045), (yf + 0.16, top - 0.016), (yf + 0.34, top - 0.004), (-0.76, top), (-0.64, top - 0.0015),
            (yr - 0.028, top - 0.006), (yr - 0.006, top - 0.024), (yr, top - 0.060),
            (yr - 0.002, geo.lerp(top - 0.06, lip, 0.5)), (yr - 0.016, lip + 0.028), (yr - 0.05, lip + 0.002),
-           (yr - 0.10, lip - 0.012), (-0.80, lip - 0.022), (-0.98, 0.566), (-1.16, 0.556), (Y_DASH_FRONT - 0.01, 0.585),
-           (Y_DASH_FRONT - 0.02, 0.68)]
+           (yr - 0.10, lip - 0.012), (-0.80, lip - 0.022), (-0.98, 0.566), (min(-1.16, yf + 0.07), 0.556), (yf - 0.01, 0.585),
+           (yf - 0.02, 0.68)]
     return pts
 
 
@@ -539,20 +541,24 @@ def build_console(K):
     body = geo.grid_surface('Interior_Console', rows, coll=coll, sharp_angle=60)
     geo.fill_holes(body)
     geo.recalc_normals(body)
-    geo.delete_faces(body, lambda c, f: WIN_Y0 < c.y < WIN_Y1 and abs(c.x) < float(win_hw(c.y)) - 0.004 and f.normal.z > 0.4)
+    geo.delete_faces(body, lambda c, f: WIN_Y0 < c.y < WIN_Y1 and abs(c.x) < float(win_hw(c.y)) - 0.008 and f.normal.z > 0.4)
     mats.assign(body, 'leather_dark')
     mats.assign_faces(body, 'leather_light', lambda c, p: c.y < -0.12 and abs(p.normal.x) > 0.6)
     K.dash.append(body)
 
     # polished aluminium frame plate (teardrop with an open window)
-    nyf = 160 if K.fin else 110
-    nxf = 22
+    nyf = 200 if K.fin else 140
+    nh = 10
     rows = []
     for y in np.linspace(-0.600, YBH - 0.012, nyf):
         hw = float(frame_hw(y))
-        rows.append([(x, y, con_z(x, y) + 0.0012) for x in np.linspace(-hw, hw, nxf)])
+        wh = float(win_hw(y)) if WIN_Y0 < y < WIN_Y1 else 0.0
+        xl = list(np.linspace(-hw, -wh, nh))
+        xr = list(np.linspace(wh, hw, nh))
+        rows.append([(x, y, con_z(x, y) + 0.0012) for x in xl + xr])
     fr = geo.grid_surface('Interior_ConsoleFrame', rows, coll=coll)
-    geo.delete_faces(fr, lambda c, f: WIN_Y0 < c.y < WIN_Y1 and abs(c.x) < float(win_hw(c.y)))
+    geo.delete_faces(fr, lambda c, f: abs(c.x) < 1e-4 and f.calc_area() > 1e-7)
+    geo.merge_by_distance(fr, 1e-6)
     geo.mod_solidify(fr, 0.005, offset=1.0)
     geo.mod_bevel(fr, 0.0012, 2, 30)
     mats.assign(fr, 'aluminum_polished')
@@ -878,8 +884,9 @@ def build_doors(K):
     for y in ys:
         pr, _wa = door_profile(y)
         pts = geo.catmull_rom([(x, 0, z) for x, z in pr], per_seg=4, closed=True)
-        rows.append([(p[0], y, p[2]) for p in pts])
+        rows.append([(p[0], min(y, spec.door_rear_y(p[2]) - 0.045), p[2]) for p in pts])
     card = geo.grid_surface('Interior_DoorCard_L', rows, close_v=True, coll=coll, sharp_angle=60)
+    geo.merge_by_distance(card, 1e-5)
     geo.fill_holes(card)
     geo.recalc_normals(card)
     mats.assign(card, 'leather_light')
@@ -972,8 +979,21 @@ def build_lights(K):
 
 
 # =====================================================================
+def _tint(name, rgb):
+    m = mats.get(name)
+    for n in m.node_tree.nodes:
+        if n.type == 'BSDF_PRINCIPLED':
+            n.inputs['Base Color'].default_value = (rgb[0] ** 2.2, rgb[1] ** 2.2, rgb[2] ** 2.2, 1.0)
+
+
 def build(ctx):
+    import os
     K = Ctx(ctx)
+    for nm, col in (('leather_light', (0.52, 0.63, 0.73)), ('leather_dark', (0.12, 0.19, 0.25))):
+        _tint(nm, col)
+    for n in mats.get('alcantara').node_tree.nodes:
+        if n.type == 'BSDF_PRINCIPLED':
+            n.inputs['Sheen Weight'].default_value = 0.15
     build_tub(K)
     build_seats(K)
     build_dash(K)
@@ -982,6 +1002,10 @@ def build(ctx):
     build_pedals(K)
     build_doors(K)
     build_lights(K)
+    if os.environ.get('TB_INT_NOROOF'):
+        for ob in K.main:
+            if ob.name.startswith(('Interior_Headliner', 'Interior_Roof', 'Interior_Mirror', 'Interior_APillar')):
+                ob.hide_render = True
     rig.adopt(K.main, ctx.module_root('Interior'))
     rig.adopt(K.seats, rig.module_root('Interior_Seats'))
     rig.adopt(K.dash, rig.module_root('Interior_Dash'))
