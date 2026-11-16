@@ -356,13 +356,13 @@ def build(ctx):
     # tail pipes: two per side, ending at y = 2.05
     outlets = []
     for xt in (0.30, 0.48):
-        z_t = 0.50
+        z_t = 0.495
         start = V((0.335 + (0.0 if xt < 0.4 else 0.03), 1.968, 0.52))
         pts = [start, V((0.335 + (xt - 0.335) * 0.35, 1.995, 0.515 - 0.004)), V((xt, 2.02, z_t)), V((xt, 2.04, z_t))]
         tpipe.tube(catmull(pts, 6), 0.036 if xt < 0.4 else 0.036, seg=TSEG)
-        tip.lathe(V((xt, 1.995, z_t)), V((xt, 2.05, z_t)), [(0.0, 0.050), (0.0, 0.057), (0.9, 0.0575), (1.0, 0.0565),
-                                                            (1.0, 0.05), (0.2, 0.049)], seg=int(28 * q))
-        tipd.cyl(V((xt, 2.01, z_t)), V((xt, 2.046, z_t)), 0.051, seg=int(24 * q), caps=False)
+        tip.lathe(V((xt, 1.995, z_t)), V((xt, 2.05, z_t)), [(0.0, 0.047), (0.0, 0.0535), (0.9, 0.0545), (1.0, 0.0535),
+                                                            (1.0, 0.047), (0.2, 0.046)], seg=int(28 * q))
+        tipd.cyl(V((xt, 2.01, z_t)), V((xt, 2.046, z_t)), 0.048, seg=int(24 * q), caps=False)
         outlets.append(dict(pos=(xt, 2.05, z_t), dia=0.113, axis=(0.0, 1.0, 0.0)))
     out_all = []
     for o in outlets:
@@ -383,11 +383,11 @@ def build(ctx):
             (0.97, 0.158), (1.0, 0.14), (1.0, 0.0)]
     gb.disc_stack(pa, pb, prof, seg=int(36 * q))
     for t in (0.075, 0.15, 0.225, 0.52, 0.64, 0.76, 0.88):                        # cooling / stiffening ribs
-        r = 0.1905 if t < 0.28 else 0.163
+        r = 0.1885 if t < 0.28 else 0.163
         gbd.cyl(pa + (pb - pa) * t, pa + (pb - pa) * t + EY * 0.007, r, seg=int(36 * q))
     gbb.ring_bolts(pa + EY * 0.0, EY, 0.172, 14, r=0.0065, h=0.006)
     # bellhousing flange facing the engine
-    gbd.cyl(pa - EY * 0.004, pa + EY * 0.012, 0.196, seg=int(36 * q))
+    gbd.cyl(pa - EY * 0.004, pa + EY * 0.012, 0.189, seg=int(36 * q))
     # diff drum across the casing and flanges for the half shafts
     gbd.cyl((-0.33, 1.60, 0.285), (0.33, 1.60, 0.285), 0.082, seg=int(24 * q))
     gb.box((0, 1.60, 0.285), (0.45, 0.16, 0.13), ch=0.014, seg=2)
