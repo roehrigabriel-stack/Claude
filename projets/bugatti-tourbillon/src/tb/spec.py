@@ -57,17 +57,20 @@ BRAKE_DISC_F = dict(d=0.420, t=0.040)   # carbon-ceramic (estimate)
 BRAKE_DISC_R = dict(d=0.400, t=0.036)
 
 # ----------------------------------------------------------------- key side-profile stations
-# (y, z) of the centreline / greenhouse, blueprint estimates. The body module owns
-# the real surfaces; these are the shared anchors other parts may rely on.
-Y_COWL = -1.200        # base of the windshield on the centreline
-Z_COWL = 0.800
-Y_HEADER = -0.520      # top of the windshield (roof header)
-Z_HEADER = 1.140
-Y_ROOF_PEAK = -0.050   # highest point of the roof
+# (y, z) of the centreline / greenhouse, measured on the dimensioned drawing
+# (docs/REFERENCE.md section 4). The body module owns the real surfaces; these
+# are the shared anchors other parts may rely on.
+Y_COWL = -1.540        # base of the windshield ON THE CENTRELINE (it wraps back to Y_APILLAR at the sides)
+Z_COWL = 0.820
+Y_APILLAR = -1.200     # base of the A-pillars (windshield base at |x| ~ 0.65..0.80)
+Y_HEADER = -0.630      # top of the windshield / roof start
+Z_HEADER = 1.080
+Y_ROOF_PEAK = 0.050    # roof is at full height from about y = -0.07 to y = +0.20
 Z_ROOF_PEAK = HEIGHT
 Y_BULKHEAD = 0.580     # rear cabin bulkhead / firewall (interior ends here)
-Z_TAIL_TOP = 0.800     # top of the tail (light bar level ~0.72..0.80)
-Z_NOSE_TIP = 0.560     # leading edge of the bonnet above the horseshoe
+Z_TAIL_TOP = 0.860     # top of the tail near the trailing edge (light bar centre at z ~ 0.77)
+Z_NOSE_TIP = 0.600     # leading edge of the bonnet above the horseshoe
+Z_BELT = 0.840         # beltline (lower edge of the side glass)
 
 # ----------------------------------------------------------------- cabin envelope (shared by body + interior)
 # The body greenhouse must ENCLOSE this envelope, the interior must stay INSIDE it.
@@ -108,8 +111,17 @@ DOOR_HINGE_L = dict(
     pivot=(0.800, -0.930, 0.760),
     axis=(0.906, 0.000, -0.423),
 )
-DOOR_Y_FRONT = -0.955   # front shut line of the door (behind the front wheel arch)
-DOOR_Y_REAR = 0.560     # rear shut line at mid height (it then follows the C-line)
+DOOR_Y_FRONT = -1.020   # front shut line of the door at the beltline (it runs down to y ~ -1.16 at z 0.70)
+DOOR_Y_REAR = 0.520     # rear shut line where it meets the roof
+# The rear shut line is DIAGONAL: from the sill it runs up and back to the roof.
+DOOR_REAR_CUT = ((-0.107, 0.140), (0.519, 1.160))   # (y, z) at the sill and at the roof
+
+
+def door_rear_y(z):
+    """y of the rear door shut line at height z (straight-line estimate)."""
+    (y0, z0), (y1, z1) = DOOR_REAR_CUT
+    t = min(1.0, max(0.0, (z - z0) / (z1 - z0)))
+    return y0 + (y1 - y0) * t
 
 # ----------------------------------------------------------------- active rear wing
 WING = dict(

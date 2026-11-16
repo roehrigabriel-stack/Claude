@@ -87,10 +87,7 @@ def helix_path(p0, p1, radius, turns, per_turn=14, wire_r=0.0, end_flat=0.6):
     pts = []
     for k in range(n + 1):
         t = k / n
-        # closed end turns: pitch smaller at both ends
-        s = t + 0.045 * math.sin(2 * math.pi * t) * -1.0 * (0.0)
-        # remap so first/last turns are compressed
-        s = t - 0.075 * math.sin(2 * math.pi * t) / (2 * math.pi) * 2.0
+        s = t - 0.15 * math.sin(2 * math.pi * t) / (2 * math.pi)   # closed (tighter) end turns
         a = 2 * math.pi * turns * t
         pts.append(p0 + w * (L * s) + u * (radius * math.cos(a)) + v * (radius * math.sin(a)))
     return np.asarray(pts)
@@ -179,7 +176,7 @@ class MeshBuilder:
         faces.append(tuple(range((m - 1) * seg, m * seg)))
         self.add(verts, faces)
 
-    def sweep(self, path, prof, scale=None, closed=True, caps=True, up=None, twist=0.0):
+    def sweep(self, path, prof, scale=None, closed=True, caps=True, up=None, twist=0.0, loop=False):
         """Sweep 2D profile along path. scale: scalar, [n] or [n,2]. up: fixed up reference or None (parallel transport)."""
         path = np.asarray(path, dtype=float)
         n = len(path)
@@ -189,6 +186,9 @@ class MeshBuilder:
         T[1:-1] = path[2:] - path[:-2]
         T[0] = path[1] - path[0]
         T[-1] = path[-1] - path[-2]
+        if loop:
+            T[0] = path[1] - path[-1]
+            T[-1] = path[0] - path[-2]
         T /= np.maximum(np.linalg.norm(T, axis=1, keepdims=True), 1e-12)
         if scale is None:
             sc = np.ones((n, 2))
@@ -222,11 +222,12 @@ class MeshBuilder:
             verts[i] = path[i] + np.outer(prof[:, 0] * sc[i, 0], side) + np.outer(prof[:, 1] * sc[i, 1], upv)
         faces = []
         mm = m if closed else m - 1
-        for i in range(n - 1):
+        for i in range(n if loop else n - 1):
+            i2 = (i + 1) % n
             for j in range(mm):
                 j2 = (j + 1) % m
-                faces.append((i * m + j, i * m + j2, (i + 1) * m + j2, (i + 1) * m + j))
-        if caps and closed:
+                faces.append((i * m + j, i * m + j2, i2 * m + j2, i2 * m + j))
+        if caps and closed and not loop:
             faces.append(tuple(range(m - 1, -1, -1)))
             faces.append(tuple(range((n - 1) * m, n * m)))
         self.add(verts.reshape(-1, 3), faces)
@@ -234,6 +235,20 @@ class MeshBuilder:
     def tube(self, path, r, seg=8, radii=None, caps=True):
         """Round tube along a path. r scalar, radii optional per-point multipliers."""
         self.sweep(path, circle(seg), scale=(r if radii is None else r * np.asarray(radii)), caps=caps)
+
+    def rings(self, rings, caps=True, closed=True):
+        """Loft through rings (list of [m,3] arrays with same m)."""
+        R = [np.asarray(r, dtype=float) for r in rings]
+        n, m = len(R), len(R[0])
+        faces = []
+        for i in range(n - 1):
+            for j in range(m if closed else m - 1):
+                j2 = (j + 1) % m
+                faces.append((i * m + j, i * m + j2, (i + 1) * m + j2, (i + 1) * m + j))
+        if caps and closed:
+            faces.append(tuple(range(m - 1, -1, -1)))
+            faces.append(tuple(range((n - 1) * m, n * m)))
+        self.add(np.vstack(R), faces)
 
     def torus(self, c, axis, major, minor, seg_major=24, seg_minor=8):
         u, v, w = frame_from_axis(axis)
@@ -329,6 +344,10 @@ class MeshBuilder:
             return np.zeros((0, 3)), []
         V_ = np.vstack(self.v)
         F_ = list(self.f)
+        if mirror == 'only':
+            Vm = V_.copy()
+            Vm[:, 0] *= -1.0
+            return Vm, [list(reversed(f)) for f in F_]
         if mirror:
             Vm = V_.copy()
             Vm[:, 0] *= -1.0
