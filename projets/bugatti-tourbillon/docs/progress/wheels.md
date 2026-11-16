@@ -31,3 +31,9 @@
 - right wheels checked (fr_closeup_v12.png, chk12.png): lettering reads correctly.
 - rear wheel final quality checked (rl_closeup_v12final.png).
 - still differs: spoke arms straight and thick vs the real curved, faceted arms; tread pattern generic; preview checker band is coarse.
+
+## Round 3 (v20 to v23): rim face rebuilt
+- Spokes are now swept solids (no boolean): compact hub (0.285 R) + 5 stems (fork at 0.42 R) + 10 Bezier arms to the rim; params in SPOKE dict in wheels_lib.py.
+- Section: narrow bright brushed top (wheel_brushed), chamfered dark flanks; cap 0.19 R, dark gloss with silver EB oval; 5 bolts on the hub between the stems.
+- Coordinator widths (stem 0.10 R, arm 0.07 R) gave a thin petal flower; settled on stem 0.19 R, arm 0.15 to 0.17 R.
+- tris FL: final 137k, preview 49k. Sheet: out/renders/wheels/cmp_round3.png

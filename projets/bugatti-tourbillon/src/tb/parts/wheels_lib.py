@@ -556,6 +556,15 @@ def window_outlines(P, grow, design=None):
     return ps
 
 
+SPOKE = dict(rhoF=0.42, wS=0.19, wA0=0.150, wA1=0.170, a0=44.0, k1=0.30, k2=0.20, rho_end=1.02,
+             top_frac=0.72, depth_k=1.0)
+
+
+def _mat_brushed():
+    return _bevel_mat('wheel_brushed', 0.0012, base_color='#B9BDC2', metallic=0.85, roughness=0.32,
+                      anisotropic=0.4, coat=0.3, coat_roughness=0.1)
+
+
 def build_rim(name, key, quality, coll):
     """Barrel + spoke face for the LEFT-side wheel (local frame, not yet baked).
     Returns (barrel, face, cap_parts, bolts)."""
@@ -615,60 +624,77 @@ def build_rim(name, key, quality, coll):
     mats.assign_faces(barrel, _mat_bright(), lambda c, p: c.x > J2 + 0.0005 and p.normal.x > 0.25
                       and math.hypot(c.y, c.z) > Rf + 0.004)
 
-    # ---------------- dished spoke disc, windows cut by boolean
-    rhos = [0.0, 0.10, 0.20, 0.28, 0.335, 0.37, 0.42, 0.47, 0.52, 0.58, 0.64, 0.70, 0.76, 0.82,
-            0.88, 0.93, 0.97, 1.0]
-    front = [(rho * Rf, face_a(P, rho)) for rho in rhos]
-    front.append((Rf + 0.004, face_a(P, 1.0)))
-    front.append((Rf + 0.006, face_a(P, 1.0) - 0.004))
-    back = [(rho * Rf, face_a(P, rho) - spoke_depth(P, rho)) for rho in reversed(rhos)]
-    back = [(Rf + 0.006, face_a(P, 1.0) - spoke_depth(P, 1.0))] + back
-    disc_prof = front + back
-    face = geo.revolve(name + '_Spokes', disc_prof, segments=nseg + 40 if final else nseg, axis='X',
-                       coll=coll, sharp_angle=40.0)
-    geo.merge_by_distance(face, 1e-6)
+    # ---------------- skeletal Y spokes: compact hub + swept stems/arms (no boolean)
+    hub_rhos = [0.0, 0.10, 0.20, 0.26, 0.285]
+    front = [(r_ * Rf, face_a(P, r_) - 0.0008) for r_ in hub_rhos]
+    back = [(r_ * Rf, face_a(P, r_) - 0.0008 - 0.030) for r_ in reversed(hub_rhos)]
+    hub = geo.revolve(name + '_Hub', front + back, segments=nseg, axis='X', coll=coll, sharp_angle=40.0)
+    geo.merge_by_distance(hub, 1e-6)
+    geo.recalc_normals(hub)
+    parts = [hub]
+    D = SPOKE
+    F_r = D['rhoF']
+
+    def bez(p0, p1, p2, p3, n=22):
+        t = np.linspace(0, 1, n)[:, None]
+        return ((1 - t) ** 3) * p0 + 3 * ((1 - t) ** 2) * t * p1 + 3 * (1 - t) * t * t * p2 + t ** 3 * p3
+
+    def sweep(nm, path, wfun):
+        verts, faces = [], []
+        N = len(path)
+        tang = np.gradient(path, axis=0)
+        tang /= np.linalg.norm(tang, axis=1)[:, None]
+        for i in range(N):
+            c = path[i] * Rf
+            nh = np.array([-tang[i][1], tang[i][0]])
+            rho = float(np.linalg.norm(path[i]))
+            af = face_a(P, rho)
+            d = spoke_depth(P, rho) * D['depth_k']
+            wb = 0.5 * wfun(i / (N - 1.0)) * Rf
+            wt = D['top_frac'] * wb
+            for n_, a_ in ((-wb, af - d), (-wb, af - 0.55 * d), (-wt, af), (wt, af), (wb, af - 0.55 * d), (wb, af - d)):
+                verts.append((a_, c[0] + n_ * nh[0], c[1] + n_ * nh[1]))
+        for i in range(N - 1):
+            for j in range(6):
+                j1 = (j + 1) % 6
+                faces.append((i * 6 + j, i * 6 + j1, (i + 1) * 6 + j1, (i + 1) * 6 + j))
+        faces.append(tuple(range(6)))
+        faces.append(tuple(range((N - 1) * 6, N * 6)))
+        ob = geo.new_object(nm, verts, faces, coll=coll, sharp_angle=40.0)
+        geo.recalc_normals(ob)
+        return ob
+
+    for k in range(5):
+        sa = 90.0 + 72.0 * k
+        F = np.array(polar(F_r, sa))
+        stem = np.linspace(np.array(polar(0.15, sa)), F, 14)
+        parts.append(sweep('%s_Stem%d' % (name, k), stem, lambda u: D['wS']))
+        for sg in (-1.0, 1.0):
+            Pend = np.array(polar(D['rho_end'], sa + sg * 36.0))
+            P1 = F + D['k1'] * np.array(polar(1.0, sa + sg * D['a0']))
+            P2 = Pend - D['k2'] * np.array(polar(1.0, sa + sg * 36.0))
+            arm = bez(F, P1, P2, Pend, 30 if final else 20)
+            parts.append(sweep('%s_Arm%d%d' % (name, k, int(sg)), arm,
+                               lambda u: D['wA0'] + (D['wA1'] - D['wA0']) * u))
+    face = geo.join(parts, name + '_Spokes')
     geo.recalc_normals(face)
-
-    a_f = face_a(P, 1.0) + 0.03
-    a_b = P['a_mount'] - 0.03
-    fronts = window_outlines(P, grow=0.0012)
-    backs = window_outlines(P, grow=-0.0030)
-    cutters = []
-    for i, (fp, bp) in enumerate(zip(fronts, backs)):
-        cutters.append(prism_between('%s_cut%d' % (name, i), fp, bp, a_f, a_b, coll))
-    # bolt counterbores at the hub spoke roots
-    bolt_r = 0.235 * Rf
-    bolt_phis = [90.0 + 72.0 * k for k in range(5)]
-    for k, ph in enumerate(bolt_phis):
-        y, z = polar(bolt_r, ph)
-        c = geo.cylinder('%s_cb%d' % (name, k), 0.0118, 0.016, 'X',
-                         (face_a(P, 0.235) + 0.002, y, z), segments=24, coll=coll)
-        cutters.append(c)
-    # centre recess for the cap
-    cutters.append(geo.cylinder(name + '_cbc', 0.039, 0.012, 'X', (P['a_hub'] + 0.002, 0, 0), segments=48,
-                                coll=coll))
-    cut = geo.join(cutters, name + '_cutters')
-    geo.boolean(face, cut, 'DIFFERENCE', solver='EXACT')
-    geo.shade(face, True, 30.0)
-    # two-tone: diamond cut front faces (outer web) bright, hub star and walls dark
+    geo.shade(face, True, 38.0)
     mats.assign(face, _mat_dark())
-    rho_split = 0.33
-
-    def bright(c, p):
-        r = math.hypot(c.y, c.z)
-        return p.normal.x > 0.80 and r > rho_split * Rf
-    mats.assign_faces(face, _mat_bright(), bright)
+    mats.assign_faces(face, _mat_brushed(), lambda c, p: p.normal.x > 0.85 and math.hypot(c.y, c.z) > 0.29 * Rf)
     if final:
-        m = geo.mod_bevel(face, 0.0016, 1, 35.0, harden=False)
+        geo.mod_bevel(face, 0.0012, 1, 35.0, harden=False)
         geo.apply_modifiers(face)
 
-    # ---------------- bolts
+    # ---------------- bolts (on the hub, between the stems)
+    bolt_r = 0.235 * Rf
+    bolt_phis = [126.0 + 72.0 * k for k in range(5)]
     bolts = []
     for k, ph in enumerate(bolt_phis):
         y, z = polar(bolt_r, ph)
-        a0 = face_a(P, 0.235) - 0.006
-        prof_b = [(0.0, a0), (0.0098, a0), (0.0098, a0 + 0.0075), (0.0088, a0 + 0.0092), (0.0050, a0 + 0.0092),
-                  (0.0050, a0 + 0.0070), (0.0, a0 + 0.0070)]
+        a0 = face_a(P, 0.235) - 0.0016
+        rb = 0.0075
+        prof_b = [(0.0, a0), (rb, a0), (rb, a0 + 0.0055), (0.9 * rb, a0 + 0.0070), (0.5 * rb, a0 + 0.0070),
+                  (0.5 * rb, a0 + 0.0052), (0.0, a0 + 0.0052)]
         b = geo.revolve('%s_Bolt%d' % (name, k), prof_b, segments=24, axis='X', origin=(0, y, z), coll=coll,
                         sharp_angle=40.0)
         geo.merge_by_distance(b, 1e-6)
@@ -683,26 +709,27 @@ def build_rim(name, key, quality, coll):
 
 
 def build_cap(name, P, coll):
+    k = 0.19 * P['Rf'] / 0.037
     a0 = P['a_hub'] - 0.010
-    prof = [(0.0, a0 + 0.0135), (0.026, a0 + 0.0131), (0.033, a0 + 0.0120), (0.0365, a0 + 0.0102),
-            (0.0370, a0), (0.0, a0)]
+    prof = [(0.0, a0 + 0.0135), (k * 0.026, a0 + 0.0131), (k * 0.033, a0 + 0.0120), (k * 0.0365, a0 + 0.0102),
+            (k * 0.0370, a0), (0.0, a0)]
     cap = geo.revolve(name, prof, segments=64, axis='X', coll=coll, sharp_angle=35.0)
     geo.merge_by_distance(cap, 1e-6)
     geo.recalc_normals(cap)
     mats.assign(cap, _mat_dark())
     # oval badge ring
     top = a0 + 0.0135
-    ell = [(0.0235 * math.cos(t), 0.0160 * math.sin(t)) for t in np.linspace(0, TAU, 64, endpoint=False)]
-    ell_in = [(0.0205 * math.cos(t), 0.0131 * math.sin(t)) for t in np.linspace(0, TAU, 64, endpoint=False)]
+    ell = [(k * 0.0235 * math.cos(t), k * 0.0160 * math.sin(t)) for t in np.linspace(0, TAU, 64, endpoint=False)]
+    ell_in = [(k * 0.0205 * math.cos(t), k * 0.0131 * math.sin(t)) for t in np.linspace(0, TAU, 64, endpoint=False)]
     ring = _ring_prism(name + '_Oval', ell, ell_in, top - 0.001, top + 0.0012, coll)
     plate = prism_between(name + '_OvalPlate', ell_in, ell_in, top + 0.0004, top - 0.001, coll)
     mats.assign(ring, _mat_bright())
-    mats.assign(plate, mats.custom('wheel_badge_enamel', base_color='#7A0E12', roughness=0.15, coat=1.0))
+    mats.assign(plate, mats.custom('wheel_badge_enamel', base_color='#0B0C0E', roughness=0.12, coat=1.0))
     # EB letters: a mirrored E back to back with a B
     letters = []
-    e = geo.text_mesh(name + '_E', 'E', size=0.019, extrude=0.0006, coll=coll)
-    b = geo.text_mesh(name + '_B', 'B', size=0.019, extrude=0.0006, coll=coll)
-    for ob, sx, dx in ((e, -1.0, -0.0058), (b, 1.0, 0.0058)):
+    e = geo.text_mesh(name + '_E', 'E', size=0.019 * k, extrude=0.0006, coll=coll)
+    b = geo.text_mesh(name + '_B', 'B', size=0.019 * k, extrude=0.0006, coll=coll)
+    for ob, sx, dx in ((e, -1.0, -0.0058 * k), (b, 1.0, 0.0058 * k)):
         me = ob.data
         xs = [v.co.x for v in me.vertices]
         cx = 0.5 * (min(xs) + max(xs))

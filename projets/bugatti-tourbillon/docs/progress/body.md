@@ -5,9 +5,14 @@
 - [x] out/scripts/body/check.py: numeric silhouette check of the skin vs blueprint (side top/bottom, plan, front/rear widths)
 - [x] body.py rewritten: rails retuned (nose plan rounder, roof +1 cm, deck channel V below spine, buttress ridge P,
       tail edge ends at y 2.218), full panel split, holes, recesses, liners, spine, C-line, doors on hinges
-- [ ] Stage A shape iteration on overlays (in progress)
-- [ ] Stage B check door_L=1, gaps, materials vs A4
-- [ ] Stage C anchors complete (only door_rear_cut, horseshoe, intakes, headlight, side intake, scoop, rear_opening so far)
+- [x] Stage A: overlays (out/renders/body/a8/sheet_all.png) match within ~2 cm except: plan nose y -2.35..-2.25
+      4-10 cm too wide at the lower lip, front-view fender side z .75-.8 2-4 cm narrow (check.py lists '*')
+- [x] mesh_region fixed: keep every cell touching the region, snap all outline verts (no saw-tooth edges);
+      openings are parameter-space polygons from Inverter(facing=...) (no wrong-sheet holes); backing skin removed
+      (it poked through concave areas); weld 0.3*ds kills slivers
+- [x] door_L=1 renders (a7): door rises, roughly butterfly; clearance not yet verified numerically
+- [x] Stage C anchors in publish_anchors() + out/renders/body/anchors.json
+- [ ] character pass vs A4 (bonnet dome / valley / fender crease), final-quality build + tri count
 
 ## How it works
 - body_lib.Skin: half skin through 9 rails C V P H K W L B U (see body.py docstring); s ~ y, t = rail index.
