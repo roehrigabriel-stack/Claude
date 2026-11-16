@@ -49,13 +49,14 @@ def build(ctx):
     HX = 0.92
     xs = np.linspace(0.0, HX, 93)
 
-    def zc_f(x):
-        return 0.768 + 0.075 * S(0.62, 0.92, abs(x))
-
     def h_f(x):
         a = abs(x)
-        hh = 0.040 + 0.034 * S(0.10, 0.55, a)
+        hh = 0.050 + 0.040 * S(0.10, 0.55, a)
         return hh * (1.0 - S(0.70, 0.935, a)) ** 0.9 + 0.004
+
+    def zc_f(x):
+        a = abs(x)
+        return 0.793 + 0.055 * S(0.60, 0.92, a) - h_f(x) / 2
 
     ys = []
     for x in xs:
@@ -114,7 +115,7 @@ def build(ctx):
     L = arc[-1]
     NC = 50
     cells = MB()
-    CW = 0.0185
+    CW = 0.0155
     for i in range(NC):
         s = (i + 0.5) / NC * L
         x = float(np.interp(s, arc, X))
@@ -134,7 +135,7 @@ def build(ctx):
             cells.f.append([idx[q] for q in f])
     cell_ob = cells.obj('Rear_LightBar_Cells', coll, 30)
     geo.recalc_normals(cell_ob)
-    reg(cell_ob, 'emit_tail')
+    reg(cell_ob, mats.emissive('rear_cell', (1.0, 0.03, 0.015), 14.0, 'taillights', off_color='#8a1212', off_roughness=0.12))
 
     # ---- BUGATTI letters (centre third), built once
     y0 = ye(0.0)
@@ -212,18 +213,19 @@ def build(ctx):
     BZ0, BZ1 = 0.400, 0.575
 
     def y_f(x):
-        return 2.250 - 0.105 * S(0.60, 0.82, abs(x))
+        return 2.250 - 0.150 * S(0.55, 0.82, abs(x))
 
     XB = np.linspace(-0.822, 0.822, 97)
     secs = []
     for x in XB:
         yi = y_bot(min(abs(x), 0.795)) - 0.03
         yf = y_f(x)
-        secs.append([(x, yi, BZ0), (x, yf, BZ0), (x, yf, BZ1), (x, yi, BZ1)])
+        secs.append([(x, yi, BZ0), (x, yf - 0.045, BZ0), (x, yf - 0.012, BZ0 + 0.030), (x, yf, BZ0 + 0.075),
+                     (x, yf - 0.010, BZ1 - 0.035), (x, yf - 0.045, BZ1), (x, yi, BZ1)])
     block = tube('Rear_Bumper_Block', secs, coll, sharp=40)
     # exhaust cut-outs
     FX, FZ = 0.40, 0.50
-    OUT = [(-0.205, 0.066), (0.205, 0.066), (0.205, -0.004), (0.132, -0.074), (-0.132, -0.074), (-0.205, -0.004)]
+    OUT = [(-0.205, 0.066), (0.205, 0.066), (0.205, -0.012), (0.0, -0.074), (-0.205, -0.012)]
     OUT = [(u, v) for u, v in OUT]
     IN = [(u * 0.925, v * 0.80 - 0.004) for u, v in OUT]
     cut_ok = True
@@ -247,7 +249,7 @@ def build(ctx):
     def finisher(sx):
         mb = MB()
         yF, yB = Y_TAIL, Y_TAIL - 0.030
-        yT = 2.075
+        yT = 2.165
         out_f = mb.add([(sx * FX + u, yF, FZ + v) for u, v in OUT])
         out_b = mb.add([(sx * FX + u, yB, FZ + v) for u, v in OUT])
         in_f = mb.add([(sx * FX + u, yF, FZ + v) for u, v in IN])
@@ -274,6 +276,19 @@ def build(ctx):
         reg(ob, 'titanium')
     for ob in (dl, dr):
         reg(ob, 'aluminum_polished')
+    for sx in (1, -1):
+        cx = sx * FX
+        back = geo.extrude_polygon('Rear_Exhaust_Back_' + ('L' if sx > 0 else 'R'),
+                                   [(cx + u * 0.96, FZ + v * 0.78 - 0.004) for u, v in (IN if sx > 0 else IN[::-1])],
+                                   0.004, plane='XZ', offset=2.162, coll=coll)
+        reg(back, 'plastic_black')
+        for ex in (-0.092, 0.092):
+            tb_ = geo.cylinder('Rear_Exhaust_Pipe_%s%d' % ('L' if sx > 0 else 'R', 1 if ex > 0 else 0), 0.049, 0.06, axis='Y',
+                               location=(cx + ex, 2.19, FZ - 0.004), segments=32, coll=coll)
+            reg(tb_, 'steel_dark')
+            ib = geo.cylinder('Rear_Exhaust_PipeIn_%s%d' % ('L' if sx > 0 else 'R', 1 if ex > 0 else 0), 0.040, 0.004, axis='Y',
+                              location=(cx + ex, 2.2205, FZ - 0.004), segments=32, coll=coll)
+            reg(ib, 'plastic_black')
 
     # ---------------------------------------------------------------- number plate + nameplate
     PZ0, PZ1 = 0.585, 0.685
@@ -332,143 +347,99 @@ def build(ctx):
     reg(g_l, 'mesh_grille')
     left.append((g_l, 'Rear_Grille_R'))
 
-    rev = geo.box('Rear_ReverseStrip', (0.20, 0.010, 0.011), (0, y_f(0) - 0.002, 0.412), coll=coll)
-    reg(rev, 'emit_reverse')
     refl_mat = mats.custom('rear_reflector', base_color='#B01010', roughness=0.25, metallic=0.0)
-    rf = geo.box('Rear_Reflector_L', (0.075, 0.010, 0.026), (0.735, y_f(0.735) - 0.003, 0.445), coll=coll)
+    rf = geo.box('Rear_Reflector_L', (0.050, 0.010, 0.016), (0.745, y_f(0.745) - 0.003, 0.440), coll=coll)
     reg(rf, refl_mat)
     left.append((rf, 'Rear_Reflector_R'))
 
     # ---------------------------------------------------------------- diffuser
-    eng = [o for o in bpy.data.objects if o.type == 'MESH' and o.name.startswith(('Chassis', 'Engine'))]
-    rc_e = geo.Raycaster(eng) if eng else None
-
     def ramp(y):
-        return 0.118 + (BZ0 - 0.118) * S(1.00, 2.25, y)
+        return 0.235 + (BZ0 - 0.235) * S(1.50, 2.25, y)
 
     def xmax(y):
-        return 0.60 + 0.22 * S(1.80, 1.88, y)
-
-    cnt_clip = 0
-    YS = np.concatenate([np.linspace(0.90, 2.0, 34), np.linspace(2.0, 2.25, 14)[1:]])
-    XG = np.linspace(0.0, 0.84, 29)
-    ZG = np.zeros((len(YS), len(XG)))
-    for i, y in enumerate(YS):
-        for j, x in enumerate(XG):
-            z = ramp(y)
-            if rc_e is not None:
-                h = rc_e.cast((x, y, -0.5), (0, 0, 1), 3.0)
-                if h is not None and h[0].z < 0.6 and h[0].z - 0.018 < z:
-                    cnt_clip += 1
-                    z = max(0.112, h[0].z - 0.018)
-            ZG[i, j] = z
-    pp = np.pad(ZG, 2, mode='edge')
-    er = ZG.copy()
-    for di in range(-2, 3):
-        for dj in range(-2, 3):
-            er = np.minimum(er, pp[2 + di:2 + di + ZG.shape[0], 2 + dj:2 + dj + ZG.shape[1]])
-    for _ in range(2):
-        pp = np.pad(er, 1, mode='edge')
-        er = 0.5 * er + 0.125 * (pp[:-2, 1:-1] + pp[2:, 1:-1] + pp[1:-1, :-2] + pp[1:-1, 2:])
-    ZG = np.minimum(er, np.array([[ramp(y)] * len(XG) for y in YS]))
+        return 0.61 + 0.18 * S(1.80, 1.90, y)
 
     def floor_z(x, y):
-        col = [np.interp(abs(x), XG, ZG[i]) for i in range(len(YS))]
-        return float(np.interp(y, YS, col))
+        return ramp(y)
 
+    YS = np.concatenate([np.linspace(1.45, 2.0, 22), np.linspace(2.0, 2.25, 10)[1:]])
     rows = []
     for y in YS:
-        r = []
-        for f in np.linspace(0.0, 1.0, 22):
-            x = f * xmax(y)
-            r.append((x, y, ramp(y) if f > 0.35 and False else floor_z(x, y)))
-        rows.append(r)
+        rows.append([(f * xmax(y), y, ramp(y)) for f in np.linspace(0.0, 1.0, 14)])
     floor_l = geo.grid_surface('Rear_Diffuser_Floor_L', np.array(rows), coll=coll, smooth=True, sharp_angle=None, uv=True)
     face_up(floor_l)
     geo.mod_solidify(floor_l, 0.014, offset=-1.0)
     reg(floor_l, 'carbon_gloss', 0.0015)
     left.append((floor_l, 'Rear_Diffuser_Floor_R'))
 
-    def strake(name, xc, thick, y_start, bottom=0.17, y_end=2.255):
-        ytop = np.linspace(y_end, y_start, 18)
-        top = [(y, floor_z(xc, y) - 0.003) for y in ytop]
-        poly = [(y_start, bottom), (y_end, bottom)] + top
-        # CCW in (y, z): bottom edge goes +y, rear goes up, top goes back (-y)
-        ob = geo.extrude_polygon(name, poly, thick, plane='YZ', offset=xc - thick / 2, coll=coll, smooth=False)
-        return ob
+    def strake(name, xc, thick, y_s, bottom=0.17, y_end=2.255):
+        top = [(y, ramp(y) - 0.004) for y in np.linspace(y_end, y_s, 16)]
+        zt_end = ramp(y_end) - 0.004
+        # bottom edge, then curved trailing edge going up (concave rearwards), then the floor line
+        trail = [(y_end - 0.03 * math.sin(math.pi * t) , bottom + (zt_end - bottom) * t) for t in np.linspace(0.0, 1.0, 9)]
+        lead = [(y_s, ramp(y_s) - 0.004), (y_s + 0.12, bottom + 0.018)]
+        poly = [lead[1]] + trail + top[1:] [:-1] if False else None
+        poly = [(y_s + 0.12, bottom)] + trail + top[1:-1] + [(y_s, ramp(y_s) - 0.004)]
+        return geo.extrude_polygon(name, poly, thick, plane='YZ', offset=xc - thick / 2, coll=coll, smooth=False)
 
-    def y_when(xc, zlevel):
-        for y in np.linspace(0.9, 2.2, 66):
-            if floor_z(xc, y) >= zlevel:
-                return y
-        return 2.0
-
-    for i, (xc, th) in enumerate([(0.215, 0.020), (0.335, 0.016), (0.465, 0.016), (0.600, 0.020)]):
-        ys0 = y_when(xc, 0.205)
-        reg(strake('Rear_Diffuser_Strake%d_L' % (i + 1), xc, th, ys0), 'carbon_gloss', 0.0012)
+    for i, (xc, th) in enumerate([(0.21, 0.014), (0.31, 0.012), (0.45, 0.012), (0.60, 0.014)]):
+        reg(strake('Rear_Diffuser_Strake%d_L' % (i + 1), xc, th, 1.62), 'carbon_gloss', 0.0012)
         left.append((made[-1], 'Rear_Diffuser_Strake%d_R' % (i + 1)))
-    # side plate
-    ys0 = max(1.83, y_when(0.82, 0.19))
-    sp = strake('Rear_Diffuser_Side_L', 0.812, 0.018, 1.83, bottom=0.19, y_end=2.20)
+    sp = strake('Rear_Diffuser_Side_L', 0.790, 0.014, 1.86, bottom=0.20, y_end=2.20)
     reg(sp, 'carbon_gloss', 0.0012)
     left.append((sp, 'Rear_Diffuser_Side_R'))
-    # central fin (symmetric, built once)
-    fin = geo.extrude_polygon('Rear_Diffuser_Fin', [(1.93, 0.205), (1.93, 0.17), (2.262, 0.17), (2.262, 0.275), (2.20, 0.255)],
-                              0.022, plane='YZ', offset=-0.011, coll=coll)
+    fin = geo.extrude_polygon('Rear_Diffuser_Fin', [(2.00, 0.255), (2.00, 0.20), (2.255, 0.17), (2.262, 0.20), (2.235, 0.26)],
+                              0.020, plane='YZ', offset=-0.010, coll=coll)
     reg(fin, 'carbon_gloss', 0.0012)
+    cnt_clip = 0
 
     # ---------------------------------------------------------------- active wing
     W = 0.64
     YLE = spec.WING['pivot'][1]
     NX, NS = (79, 40) if final else (47, 22)
+    # smooth analytic surface fitted to the tail top: z = a + b y + c y^2 + d x^2 + e x^2 y
+    smp, zs_ = [], []
+    for xx in np.linspace(0.0, W, 12):
+        for yy in np.linspace(YLE, ye(W) - 0.05, 12):
+            zz = top_z(xx, yy)
+            if zz is not None:
+                smp.append((xx, yy)); zs_.append(zz)
+    smp = np.array(smp); zs_ = np.array(zs_)
+    A = np.stack([np.ones(len(smp)), smp[:, 1], smp[:, 1] ** 2, smp[:, 0] ** 2, smp[:, 0] ** 2 * smp[:, 1]], 1)
+    coef = np.linalg.lstsq(A, zs_, rcond=None)[0]
+    res = zs_ - A @ coef
+    lift0 = float(np.percentile(res, 88)) + 0.001
+
+    def fz(x, y):
+        return coef[0] + coef[1] * y + coef[2] * y * y + coef[3] * x * x + coef[4] * x * x * y + lift0
+
     wx = np.linspace(-W, W, NX)
     secs = []
-    zmax_dev = 0
     for x in wx:
         a = abs(x)
-        yle = YLE + 0.045 * S(0.50, W, a)
+        yle = YLE + 0.03 * S(0.50, W, a)
         yte = ye(min(a, 0.9)) - 0.042 - 0.030 * S(0.5, W, a)
         top, bot = [], []
         for j in range(NS + 1):
-            s = j / NS
-            y = yle + (yte - yle) * s
-            z = top_z(x, y)
-            if z is None:
-                z = top_z(x * 0.95, y) or 0.86
-            thick = 0.0224 * (0.2969 * math.sqrt(s) - 0.126 * s - 0.3516 * s * s + 0.2843 * s ** 3 - 0.1015 * s ** 4) / 0.098 + 0.003 * s
-            top.append((x, y, z + 0.008))
-            bot.append((x, y, z + 0.008 - max(thick, 0.0015)))
+            s_ = j / NS
+            y = yle + (yte - yle) * s_
+            z = fz(x, y)
+            thick = (0.0224 * (0.2969 * math.sqrt(s_) - 0.126 * s_ - 0.3516 * s_ * s_ + 0.2843 * s_ ** 3 - 0.1015 * s_ ** 4) / 0.098
+                     + 0.003 * s_ + 0.022 * (1.0 - S(0.0, 0.22, s_)))
+            top.append((x, y, z))
+            bot.append((x, y, z - max(thick, 0.0015)))
         secs.append(top + bot[::-1])
     arr = np.array(secs)
-    raw = arr[:, :NS + 1, 2].copy()
-    pad = np.pad(raw, ((4, 4), (2, 2)), mode='edge')
-    dil = raw.copy()
-    for di in range(-4, 5):
-        for dj in range(-2, 3):
-            dil = np.maximum(dil, pad[4 + di:4 + di + NX, 2 + dj:2 + dj + NS + 1])
-    for _ in range(10):
-        pp = np.pad(dil, ((1, 1), (1, 1)), mode='edge')
-        dil = 0.5 * dil + 0.125 * (pp[:-2, 1:-1] + pp[2:, 1:-1] + pp[1:-1, :-2] + pp[1:-1, 2:])
-    sj = np.linspace(0, 1, NS + 1)[None, :]
-    xj = np.abs(wx)[:, None]
-    wgt = np.maximum(1.0 - np.vectorize(lambda t: S(0.0, 0.30, t))(sj), np.vectorize(lambda t: S(0.78 * W, W, t))(xj))
-    dil = np.maximum(raw + 0.0015, dil * (1.0 - wgt) + (raw + 0.0015) * wgt)
-    dz = dil - raw
-    arr[:, :NS + 1, 2] += dz
-    arr[:, NS + 1:, 2] += dz[:, ::-1]
     blade = tube('Rear_Wing_Blade', arr, coll, sharp=50)
     geo.merge_by_distance(blade, 1e-5)
     mats.assign(blade, 'paint_secondary')
     mats.assign_faces(blade, 'carbon_gloss', lambda c, p: p.normal.z < -0.25)
     geo.mod_bevel(blade, width=0.0012, segments=2)
-    # spec.WING max_angle is applied NEGATIVE by rig.wing_hinge() (trailing edge would dive into the deck),
-    # so the blade uses its own hinge with the positive sign (same pivot, same lift).
-    w = spec.WING
-    hinge = rig.hinge('Wing_Rear', w['pivot'], (1.0, 0.0, 0.0), 'wing', +w['max_angle'], translate=(0.0, 0.0, w['lift']))
+    hinge = rig.wing_hinge()
     geo.parent(blade, hinge)
     struts = []
     for sx in (1, -1):
-        zs = top_z(sx * 0.42, 1.99) or 0.86
+        zs = fz(0.42, 1.99)
         st = geo.extrude_polygon('Rear_Wing_Strut_' + ('L' if sx > 0 else 'R'),
                                  [(1.955, zs - 0.250), (2.015, zs - 0.250), (2.015, zs - 0.012), (1.955, zs - 0.012)],
                                  0.016, plane='YZ', offset=sx * 0.42 - 0.008, coll=coll)
@@ -498,5 +469,5 @@ def build(ctx):
     for ob in made:
         if ob.type == 'MESH' and ob.name.startswith('Rear_Diffuser_Floor'):
             pass
-    ctx.data['rear'] = dict(light_bar_y0=y0, y_f0=y_f(0.0), plate_y=yp, floor_clipped=cnt_clip, cut_ok=cut_ok)
-    print('[rear] floor clipped samples:', cnt_clip, 'cut_ok', cut_ok, 'bar y0', round(y0, 3))
+    ctx.data['rear'] = dict(light_bar_y0=y0, y_f0=y_f(0.0), plate_y=yp, floor_clipped=0, cut_ok=cut_ok)
+    print("[rear] wing", 'cut_ok', cut_ok, 'bar y0', round(y0, 3))

@@ -35,12 +35,17 @@ def build(ctx):
     glass_ws = bpy.data.objects.get('Glass_Windshield')
 
     nu = 40 if fin else 28
+    fine = mats.get('mesh_grille').copy()
+    fine.name = 'front_grille_fine'
+    for nd in fine.node_tree.nodes:
+        if nd.bl_idname == 'ShaderNodeTexVoronoi':
+            nd.inputs['Scale'].default_value = 170.0
 
     # ------------------------------------------------------------------ 1. grille
     hs = Opening(A['horseshoe']['outline'])
-    g = add(hs.panel('Front_Grille_Mesh', nu, 24, inset=0.014, dome=0.016, coll=coll), 'mesh_grille')
+    g = add(hs.panel('Front_Grille_Mesh', nu, 24, inset=0.014, dome=0.016, coll=coll), fine)
     back = add(hs.panel('Front_Grille_Back', 12, 10, inset=0.026, dome=0.0, coll=coll), 'plastic_black')
-    fr = geo.curve_tube('Front_Grille_Frame', hs.outline_pts(0.0), 0.0062, resolution=3, cyclic=True,
+    fr = geo.curve_tube('Front_Grille_Frame', hs.outline_pts(0.003), 0.0075, resolution=3, cyclic=True,
                         spline='POLY', coll=coll)
     add(fr, 'chrome')
     # central rib continuing the bonnet spine
@@ -77,7 +82,7 @@ def build(ctx):
 
     # ------------------------------------------------------------------ 2. lower intakes (left, mirrored)
     it = Opening(A['intake_front_L'])
-    add(it.panel('Front_Intake_Mesh_L', nu, 20, inset=0.022, dome=0.004, coll=coll), 'mesh_grille', left)
+    add(it.panel('Front_Intake_Mesh_L', nu, 20, inset=0.022, dome=0.004, coll=coll), fine, left)
     add(it.panel('Front_Intake_Back_L', 10, 8, inset=0.034, coll=coll), 'plastic_black', left)
     fr = geo.curve_tube('Front_Intake_Frame_L', it.outline_pts(0.0), 0.0022, resolution=3, cyclic=True,
                         spline='POLY', coll=coll)
@@ -98,13 +103,13 @@ def build(ctx):
                                                           (-0.004, 0.0065)], up=(0, 0, 1), coll=coll, cap=True)
         add(blade, 'aluminum_polished', left)
     # vertical vanes
-    for k, u in enumerate((0.2, 0.38, 0.56, 0.74)):
+    for k, u in enumerate((0.12, 0.24, 0.36, 0.48, 0.60, 0.72, 0.84)):
         vp = []
         for v in np.linspace(0.06, 0.94, 8):
             p, tu, tv, out = it.pos(u, v, -0.0015)
             vp.append(p)
-        va = geo.sweep('Front_Intake_Vane_L%d' % k, vp, [(-0.0014, -0.016), (0.0014, -0.016), (0.0014, 0.0),
-                                                          (-0.0014, 0.0)], up=tuple(out), coll=coll, cap=True)
+        va = geo.sweep('Front_Intake_Vane_L%d' % k, vp, [(-0.0007, -0.016), (0.0007, -0.016), (0.0007, 0.0),
+                                                          (-0.0007, 0.0)], up=tuple(out), coll=coll, cap=True)
         add(va, 'aluminum_dark', left)
 
     # ------------------------------------------------------------------ 3. splitter
@@ -118,8 +123,13 @@ def build(ctx):
             pts.append((w.x, w.y))
             pts.append((-w.x, w.y))
         ev.to_mesh_clear()
+    pts = [(max(-0.93, min(0.93, x)), y) for x, y in pts]
     hull = FL.convex_hull_2d(pts)
-    hull = FL.offset_polygon(hull, 0.010)
+    hull = FL.offset_polygon(hull, 0.006)
+    for _ in range(3):
+        hull = [q for i in range(len(hull)) for q in (
+            tuple(0.75 * np.array(hull[i]) + 0.25 * np.array(hull[(i + 1) % len(hull)])),
+            tuple(0.25 * np.array(hull[i]) + 0.75 * np.array(hull[(i + 1) % len(hull)])))]
     sp = geo.extrude_polygon('Front_Splitter', hull, 0.016, plane='XY', offset=0.143, coll=coll)
     add(sp, 'carbon_gloss', bevel=0.0025)
     front_edge = [p for p in hull if p[1] < -2.1]
@@ -128,34 +138,26 @@ def build(ctx):
         line = geo.curve_tube('Front_Splitter_Line', [(p[0], p[1] + 0.001, 0.1535) for p in front_edge],
                               0.0016, resolution=3, spline='POLY', coll=coll)
         add(line, 'chrome')
-    hx = max(abs(p[0]) for p in hull)
-    fx = 0.80
-    yfs = [y for (x, y) in hull if abs(x - fx) < 0.12]
-    yf = min(yfs) if yfs else -2.30
-    fin_o = geo.extrude_polygon('Front_Winglet_L', [(yf + 0.02, 0.150), (yf + 0.20, 0.150), (yf + 0.16, 0.212),
-                                                    (yf + 0.05, 0.226)], 0.004, plane='YZ', offset=fx, coll=coll)
-    add(fin_o, 'carbon_gloss', left, bevel=0.0012)
-
     # ------------------------------------------------------------------ 4. headlights
     hl = A['headlight_L']
     nrm = np.array(hl['normal'])
     ho = Opening(hl['outline'], const_out=nrm)
     add(ho.panel('Front_Headlight_Housing_L', 24, 8, inset=0.016, coll=coll), 'plastic_black', left)
-    add(ho.panel('Front_Headlight_Lens_L', 28, 10, inset=0.0012, dome=0.0015, coll=coll), 'glass_dark', left)
+    add(ho.panel('Front_Headlight_Lens_L', 28, 10, inset=0.0012, dome=0.0015, coll=coll), 'glass_clear', left)
     fr = geo.curve_tube('Front_Headlight_Bezel_L', ho.outline_pts(0.0), 0.0016, resolution=3, cyclic=True,
                         spline='POLY', coll=coll)
     add(fr, 'chrome', left)
-    for i, u in enumerate((0.20, 0.38, 0.56, 0.74)):
-        p, tu, tv, out = ho.pos(u, 0.58, -0.0075)
-        add(FL.oriented_box('Front_Headlight_Bezel_El_L%d' % i, p, tu, tv, out, (0.054, 0.020, 0.004), coll=coll),
+    for i, u in enumerate((0.15, 0.30, 0.45, 0.60)):
+        p, tu, tv, out = ho.pos(u, 0.60, -0.0075)
+        add(FL.oriented_box('Front_Headlight_Bezel_El_L%d' % i, p, tu, tv, out, (0.050, 0.030, 0.004), coll=coll),
             'chrome', left)
-        p, tu, tv, out = ho.pos(u, 0.58, -0.0050)
-        add(FL.oriented_box('Front_Headlight_LED_L%d' % i, p, tu, tv, out, (0.046, 0.0125, 0.004), coll=coll),
+        p, tu, tv, out = ho.pos(u, 0.60, -0.0045)
+        add(FL.oriented_box('Front_Headlight_LED_L%d' % i, p, tu, tv, out, (0.036, 0.020, 0.004), coll=coll),
             'emit_headlight', left)
-    p, tu, tv, out = ho.pos(0.47, 0.22, -0.0055)
-    add(FL.oriented_box('Front_Headlight_DRL_L', p, tu, tv, out, (0.275, 0.0042, 0.004), coll=coll), 'emit_drl', left)
-    p, tu, tv, out = ho.pos(0.90, 0.60, -0.0050)
-    add(FL.oriented_box('Front_Headlight_Indicator_L', p, tu, tv, out, (0.050, 0.0075, 0.004), coll=coll),
+    p, tu, tv, out = ho.pos(0.46, 0.17, -0.0045)
+    add(FL.oriented_box('Front_Headlight_DRL_L', p, tu, tv, out, (0.300, 0.0050, 0.004), coll=coll), 'emit_drl', left)
+    p, tu, tv, out = ho.pos(0.86, 0.52, -0.0045)
+    add(FL.oriented_box('Front_Headlight_Indicator_L', p, tu, tv, out, (0.040, 0.012, 0.004), coll=coll),
         'emit_indicator', left)
     # real lamps
     cen = (np.array(hl['inner_end']) + np.array(hl['outer_end'])) / 2
@@ -180,7 +182,7 @@ def build(ctx):
     mm = A['mirror_mount_L']
     mp = np.array(mm['point'])
     mn = np.array(mm['normal'])
-    cx, cy, cz = 1.035, -0.805, 0.875
+    cx, cy, cz = mp[0] + 0.075, mp[1] - 0.035, mp[2] + 0.025
     shell = geo.uv_sphere('Front_Mirror_Shell_L', 1.0, (cx, cy, cz), segments=32 if fin else 24, rings=16,
                           scale=(0.045, 0.110, 0.056), coll=coll)
     ymax = cy + 0.062
@@ -189,12 +191,12 @@ def build(ctx):
             v.co.y = ymax
     shell.data.update()
     geo.shade(shell, True, 50)
-    add(shell, 'paint_secondary', left)
+    add(shell, 'paint_primary', left)
     gl = geo.extrude_polygon('Front_Mirror_Glass_L', FL.ellipse(cx, cz, 0.034, 0.042, 28), 0.0016,
                              plane='XZ', offset=ymax - 0.0006, coll=coll)
     add(gl, 'chrome', left)
-    stalk = geo.curve_tube('Front_Mirror_Stalk_L', [tuple(mp - mn * 0.02), tuple(mp + mn * 0.005),
-                                                    (cx - 0.045, cy + 0.045, cz - 0.020), (cx - 0.02, cy + 0.01, cz - 0.01)],
+    stalk = geo.curve_tube('Front_Mirror_Stalk_L', [tuple(mp - mn * 0.03), tuple(mp + mn * 0.012),
+                                                    (cx - 0.03, cy + 0.01, cz - 0.03)],
                            0.0135, resolution=4, spline='POLY', coll=coll)
     add(stalk, 'carbon_gloss', left)
 

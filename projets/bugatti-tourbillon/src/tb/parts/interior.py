@@ -46,7 +46,7 @@ RWHEEL = C['steering_diameter'] / 2.0
 Y_DASH_FRONT = -1.22                 # dashboard front edge at the A-pillars
 Y_DASH_CTR = spec.Y_COWL + 0.03      # dashboard front edge on the centreline (under the cowl)
 X_DASH_END = XSILL + 0.025           # dashboard wing ends just inside the door card
-Y_HEADER_IN = spec.Y_HEADER - 0.01   # front edge of the headliner
+Y_HEADER_IN = spec.Y_HEADER + 0.12   # front edge of the headliner
 Z_HEAD_REAR = ZHEAD - 0.05           # headliner height at the bulkhead (roof falls)
 PLAN_FRONT = 0.86                    # teardrop plan: width factor at the footwell front
 PLAN_REAR = 0.84                     # width factor at the bulkhead
@@ -191,19 +191,20 @@ def build_tub(K):
     mats.assign(pad, 'leather_light')
     K.main.append(pad)
 
-    # headliner (alcantara, faces down), following the teardrop plan
-    ny, nx = 36, 30
-    rows = []
-    for i in range(ny + 1):
-        y = geo.lerp(Y_HEADER_IN, YBH, i / ny)
-        zc = float(geo.Pchip([Y_HEADER_IN, -0.25, 0.10, YBH], [ZHEAD - 0.015, ZHEAD, ZHEAD, Z_HEAD_REAR])(y))
-        hw = XROOF * geo.lerp(1.0, PLAN_REAR + 0.04, ss(0.1, YBH, y)) + 0.01
-        rows.append([(geo.lerp(-hw, hw, j / nx), y, zc - 0.045 * (geo.lerp(-1, 1, j / nx)) ** 4) for j in range(nx + 1)])
-    hl = geo.grid_surface('Interior_Headliner', rows, coll=coll)
-    if hl.data.polygons[0].normal.z > 0:
-        geo.flip_normals(hl)
-    mats.assign(hl, 'alcantara')
-    K.main.append(hl)
+    # glass roof: no full headliner, only slim alcantara rails, header and rear strips
+    hz = geo.Pchip([Y_HEADER_IN, -0.25, 0.10, YBH], [ZHEAD - 0.015, ZHEAD, ZHEAD, Z_HEAD_REAR])
+    ysr = np.linspace(Y_HEADER_IN + 0.02, YBH - 0.02, 26)
+    for side in (1, -1):
+        pts = [(side * (XROOF * geo.lerp(1.0, PLAN_REAR + 0.04, ss(0.1, YBH, float(y))) - 0.03), float(y), float(hz(y)) - 0.012) for y in ysr]
+        rail = geo.sweep('Interior_Headliner_%s' % ('L' if side > 0 else 'R'), pts, L.rrect(0.04, 0.012, 0.004, 3), up=(0, 0, 1), coll=coll)
+        mats.assign(rail, 'alcantara')
+        K.main.append(rail)
+    for nm, yy in (('Front', Y_HEADER_IN + 0.03), ('Rear', YBH - 0.03)):
+        hw = XROOF * (1.0 if yy < 0 else PLAN_REAR + 0.04) - 0.03
+        pts = [(float(x), yy, float(hz(yy)) - 0.012) for x in np.linspace(-hw, hw, 14)]
+        cs = geo.sweep('Interior_HeadlinerCross%s_L' % nm, pts, L.rrect(0.04, 0.012, 0.004, 3), up=(0, 0, 1), coll=coll)
+        mats.assign(cs, 'alcantara')
+        K.main.append(cs)
     hl_z = geo.Pchip([Y_HEADER_IN, -0.25, 0.10, YBH], [ZHEAD - 0.015, ZHEAD, ZHEAD, Z_HEAD_REAR])
     pts = [(0, y, float(hl_z(y)) - 0.004) for y in np.linspace(Y_HEADER_IN + 0.01, YBH - 0.01, 16)]
     sp = geo.sweep('Interior_RoofSpine', pts, L.rrect(0.022, 0.006, 0.0025, 3), up=(0, 0, 1), coll=coll)
@@ -1061,6 +1062,61 @@ def _tint(name, rgb):
             n.inputs['Base Color'].default_value = (rgb[0] ** 2.2, rgb[1] ** 2.2, rgb[2] ** 2.2, 1.0)
 
 
+def fit_to_shell(K):
+    """Keep roof / pillar / mirror parts at least 15 mm inside the glass and roof surfaces (when the body is present)."""
+    import bpy
+    shells = [bpy.data.objects.get(n) for n in ('Glass_Windshield', 'Glass_Roof', 'Glass_Side_L', 'Glass_Side_R', 'Body_Roof')]
+    shells = [o for o in shells if o is not None]
+    if not shells:
+        return
+    rc = geo.Raycaster(shells)
+    CL = 0.016
+    UP, DN = Vector((0, 0, 1)), Vector((0, 0, -1))
+
+    def need(p):
+        h = rc.cast(p, UP)
+        if h is not None:
+            return max(0.0, CL - h[2])
+        h = rc.cast(p, DN)
+        if h is not None and h[2] < 0.25:
+            return h[2] + CL
+        return 0.0
+
+    groups = {}
+    for ob in K.main:
+        n = ob.name
+        if n.startswith('Interior_Mirror'):
+            groups.setdefault('mirror', []).append(ob)
+        elif n.startswith(('Interior_RoofPod', 'Interior_RoofToggle')):
+            groups.setdefault('pod', []).append(ob)
+        elif n.startswith(('Interior_Headliner', 'Interior_RoofSpine', 'Interior_APillar')):
+            for v in ob.data.vertices:
+                p = Vector(v.co)
+                dz = need(p)
+                if dz:
+                    v.co.z -= dz
+                for _ in range(5):
+                    q = rc.nearest(Vector(v.co))
+                    if q is None or q[2] >= CL:
+                        break
+                    dv = Vector(v.co) - q[0]
+                    dv = dv.normalized() if dv.length > 1e-6 else Vector((0, 0, -1))
+                    if dv.z > 0.3:
+                        dv = Vector((dv.x * 0.5, dv.y * 0.5, -0.8))
+                    v.co += dv * (CL - q[2] + 0.002)
+            ob.data.update()
+    for g, objs in groups.items():
+        sh = 0.0
+        for ob in objs:
+            for v in ob.data.vertices:
+                sh = max(sh, need(Vector(v.co)))
+        if sh:
+            for ob in objs:
+                for v in ob.data.vertices:
+                    v.co.z -= sh
+                ob.data.update()
+
+
 def build(ctx):
     import os
     K = Ctx(ctx)
@@ -1074,6 +1130,7 @@ def build(ctx):
     build_pedals(K)
     build_doors(K)
     build_lights(K)
+    fit_to_shell(K)
     if os.environ.get('TB_INT_NOROOF'):
         for ob in K.main:
             if ob.name.startswith(('Interior_Headliner', 'Interior_Roof', 'Interior_Mirror', 'Interior_APillar')):
