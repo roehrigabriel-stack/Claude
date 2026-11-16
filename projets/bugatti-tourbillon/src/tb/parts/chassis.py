@@ -30,7 +30,7 @@ def _materials():
     mats.custom('Anodised_Gold', base_color='#C99A3C', metallic=0.9, roughness=0.3)
     mats.custom('Hose_Black', base_color=(0.012, 0.012, 0.013), roughness=0.5)
     mats.custom('Radiator_Core', base_color='#25272B', metallic=0.7, roughness=0.5)
-    mats.custom('Spring_Red', base_color='#B01818', metallic=0.3, roughness=0.35, coat=0.6)
+    mats.custom('Spring_Red', base_color='#12A5BC', metallic=0.3, roughness=0.35, coat=0.6)
 
 
 # ---------------------------------------------------------------- small assemblies
@@ -105,7 +105,7 @@ def damper(P, p0, p1, r_body=0.019, spring_r=0.030, turns=7, q=1):
 # ================================================================= TUB
 def build_tub(ctx, coll, root, final):
     P = Parts(coll, root, 'Chassis_')
-    S = 1.5 if final else 1.0
+    S = 2.4 if final else 1.0
     cg = P.get('Tub_Floor', 'carbon_gloss', bevel=(0.0015, 2))
     cs = P.get('Tub_Sills', 'carbon_gloss', mirror=True, bevel=(0.002, 2))
     cb = P.get('Tub_Bulkheads', 'carbon_gloss', bevel=(0.002, 2))
@@ -225,7 +225,7 @@ def build_underfloor(coll, root):
 # ================================================================= FRONT STRUCTURE
 def build_front_structure(ctx, coll, root, final):
     P = Parts(coll, root, 'Chassis_F_')
-    sg = 1.5 if final else 1.0
+    sg = 2.4 if final else 1.0
     seg = int(16 * sg)
     ad = P.get('Subframe', 'aluminum_dark', bevel=(0.0025, 2))
     ab = P.get('SubframeHardware', 'aluminum_brushed')
@@ -287,6 +287,12 @@ def build_front_structure(ctx, coll, root, final):
         cr.box((sx * 0.55, -1.835, 0.34), (0.18, 0.012, 0.14), ch=0.004)
         ad.box_between((sx * 0.55, -1.84, 0.34), (sx * 0.30, -1.79, 0.20), 0.07, 0.07, ch=0.006)
     cf.box_between((-0.60, -2.14, 0.20), (0.60, -2.14, 0.20), 0.05, 0.03, ch=0.004)     # splitter bracket
+    hs = P.get('Horseshoe', 'carbon_gloss', bevel=(0.002, 2))
+    hpath = catmull([(-0.20, -2.10, 0.20), (-0.235, -2.10, 0.33), (-0.19, -2.10, 0.43), (-0.08, -2.10, 0.46),
+                     (0.08, -2.10, 0.46), (0.19, -2.10, 0.43), (0.235, -2.10, 0.33), (0.20, -2.10, 0.20)], 8)
+    hs.sweep(hpath, rect_profile(0.045, 0.04, 0.008), up=(0, 1, 0))
+    hs.box_between((-0.20, -2.10, 0.20), (-0.20, -1.86, 0.20), 0.045, 0.04, ch=0.006)
+    hs.box_between((0.20, -2.10, 0.20), (0.20, -1.86, 0.20), 0.045, 0.04, ch=0.006)
     for sx in (-1, 1):
         cf.box_between((sx * 0.45, -2.14, 0.20), (sx * 0.33, -1.80, 0.17), 0.04, 0.03)
     for x in np.linspace(-0.62, 0.62, 9):
@@ -383,7 +389,7 @@ def build_corner(ctx, P, key, front, root_hinge=None):
 
 
 def build_suspension_front(ctx, coll, root_front, final):
-    sg = 1.5 if final else 1.0
+    sg = 2.4 if final else 1.0
     seg = int(16 * sg)
     ctxd = ctx.data.setdefault('chassis', {})
     # shared (static) parts of both sides
@@ -505,7 +511,7 @@ def build_suspension_front(ctx, coll, root_front, final):
 
 
 def build_suspension_rear(ctx, coll, root_rear, final):
-    sg = 1.5 if final else 1.0
+    sg = 2.4 if final else 1.0
     seg = int(16 * sg)
     PS = Parts(coll, root_rear, 'Chassis_R_')
     arm = PS.get('Wishbones', 'aluminum_brushed', mirror=True)
@@ -550,14 +556,14 @@ def build_suspension_rear(ctx, coll, root_rear, final):
             hard.box((0.485, y, 0.20), (0.04, 0.06, 0.06), ch=0.004)
     # engine brackets (rails -> engine flank, under the exhaust lane)
     for y in (0.85, 1.15, 1.45):
-        sub.box_between((0.47, y, 0.165), (0.20, y, 0.165), 0.05, 0.035, ch=0.004)
+        sub.box_between((0.47, y, 0.165), (0.17, y, 0.165), 0.05, 0.035, ch=0.004)
     for y in (1.62, 1.80):
-        sub.box_between((0.47, y, 0.20), (0.20, y, 0.20), 0.06, 0.06, ch=0.005)
+        sub.box_between((0.47, y, 0.20), (0.12, y, 0.20), 0.06, 0.06, ch=0.005)
     # bolts
     for y in np.linspace(0.78, 1.95, 8):
         ab.bolts([(0.51, y, 0.2725)], (0, 0, 1), r=0.0065, h=0.005)
     # rear deck beam (carries the damper rockers): spans the engine bay at y = 1.40
-    yb = YR + 0.03
+    yb = YR + 0.27
     zb = 0.75
     carb.box_between((-0.455, yb, zb), (0.455, yb, zb), 0.075, 0.085, ch=0.012)
     for sx in (-1, 1):
@@ -567,8 +573,8 @@ def build_suspension_rear(ctx, coll, root_rear, final):
     wishbone(arm, hard, low_in, lbj, bow=0.010)
     wishbone(arm, hard, up_in, ubj, bow=0.010, w=0.010, h=0.017)
     # pushrod + rocker + damper (along X, forward of the beam)
-    y_d = YR - 0.04
-    p_low = V((0.735, y_d, 0.285))
+    y_d = YR + 0.23
+    p_low = V((0.735, y_d, 0.295))
     rk_pivot = V((0.425, y_d, 0.665))
     rk_a = V((0.49, y_d, 0.625))
     rk_b = V((0.352, y_d, 0.705))

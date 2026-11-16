@@ -94,7 +94,7 @@ def build(ctx):
     importlib.reload(L)
     _materials()
     final = ctx.final()
-    q = 1.5 if final else 1.0
+    q = 2.4 if final else 1.0
     SEG = int(14 * q)        # cylinder segments
     TSEG = int(10 * q)       # tube segments
     coll = ctx.collection('Engine')
