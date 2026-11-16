@@ -1,0 +1,7 @@
+# reference images are third-party material: keep them local
+refs/
+# generated files
+out/
+__pycache__/
+*.pyc
+*.blend1
