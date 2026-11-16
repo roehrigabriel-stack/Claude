@@ -54,7 +54,7 @@ def build(ctx):
 
     def h_f(x):
         a = abs(x)
-        hh = 0.034 + 0.030 * S(0.10, 0.55, a)
+        hh = 0.040 + 0.034 * S(0.10, 0.55, a)
         return hh * (1.0 - S(0.70, 0.935, a)) ** 0.9 + 0.004
 
     ys = []
@@ -102,8 +102,8 @@ def build(ctx):
         sec_h.append([pt(0.002, lo), pt(0.002, hi), pt(-0.050, hi), pt(-0.050, lo)])
         sec_c.append([pt(0.0125, lo + 0.0005), pt(0.0125, hi - 0.0005), pt(0.0078, hi - 0.0005), pt(0.0078, lo + 0.0005)])
     housing = reg(tube('Rear_LightBar_Housing', sec_h, coll), 'glass_dark', 0.0015)
-    sec_c_l = [s for s, x in zip(sec_c, X) if x > 0.30]
-    sec_c_r = [s for s, x in zip(sec_c, X) if x < -0.30]
+    sec_c_l = [s for s, x in zip(sec_c, X) if x > 0.20]
+    sec_c_r = [s for s, x in zip(sec_c, X) if x < -0.20]
     cov_l = reg(tube('Rear_LightBar_Cover_L', sec_c_l, coll), 'glass_red')
     cov_r = reg(tube('Rear_LightBar_Cover_R', sec_c_r, coll), 'glass_red')
 
@@ -114,11 +114,11 @@ def build(ctx):
     L = arc[-1]
     NC = 50
     cells = MB()
-    CW = 0.0165
+    CW = 0.0185
     for i in range(NC):
         s = (i + 0.5) / NC * L
         x = float(np.interp(s, arc, X))
-        if abs(x) < 0.30:
+        if abs(x) < 0.185:
             continue
         P, t, n, h = frame(x)
         hh = max(h - 0.010, 0.004)
@@ -138,13 +138,13 @@ def build(ctx):
 
     # ---- BUGATTI letters (centre third), built once
     y0 = ye(0.0)
-    letters = fit_text('Rear_LightBar_Letters', 'BUGATTI', 0.29, 0.027, 0.0035, coll)
+    letters = fit_text('Rear_LightBar_Letters', 'BUGATTI', 0.33, 0.029, 0.0035, coll)
     letters.data.transform(__import__('mathutils').Matrix(((-1, 0, 0, 0), (0, 0, 1, y0 + 0.0065), (0, 1, 0, zc_f(0.0)), (0, 0, 0, 1))))
     letters.data.update()
     geo.recalc_normals(letters)
     reg(letters, 'emit_brake')
     # dark backing strip behind the letters
-    bk = geo.box('Rear_LightBar_LetterBack', (0.31, 0.012, 0.034), (0, y0 - 0.003, zc_f(0.0)), coll=coll)
+    bk = geo.box('Rear_LightBar_LetterBack', (0.36, 0.012, 0.040), (0, y0 - 0.003, zc_f(0.0)), coll=coll)
     reg(bk, 'plastic_black')
 
     # ---- EB logo above the bar
@@ -199,7 +199,7 @@ def build(ctx):
     panel = geo.grid_surface('Rear_Panel_Carbon', np.array(rows_p), coll=coll, smooth=True, sharp_angle=None, uv=True)
     wall = geo.grid_surface('Rear_Wall', np.array(rows_w), coll=coll, smooth=True, sharp_angle=None, uv=True)
     for ob in (panel, wall):
-        geo.mod_solidify(ob, 0.012, offset=1.0)
+        geo.mod_solidify(ob, 0.012, offset=-1.0)
     # make normals face +Y (rearwards)
     for ob in (panel, wall):
         nsum = sum(p.normal.y * p.area for p in ob.data.polygons)
