@@ -156,7 +156,7 @@ def door_hinge(side):
 
 def wing_hinge():
     w = spec.WING
-    return hinge('Wing', w['pivot'], (1.0, 0.0, 0.0), 'wing', -w['max_angle'], translate=(0.0, 0.0, w['lift']))
+    return hinge('Wing', w['pivot'], (1.0, 0.0, 0.0), 'wing', w['max_angle'], translate=(0.0, 0.0, w['lift']))
 
 
 def wheel_pivots(key):

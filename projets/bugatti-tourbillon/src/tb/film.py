@@ -207,7 +207,7 @@ class Shots:
 # Assembly rules: (timeline 'land' label, object name patterns, start offset, start rotation, lead time s)
 # Patterns are matched against the direct movable units of the car (see _units()).
 ASSEMBLY = [
-    ('front subframe', ['MOD_Chassis_Front'],                              (0.0, -7.0, 0.0),  (0, 0, 0),    0.75),
+    ('front subframe', ['MOD_Chassis_Front', 'HINGE_Chassis_Steer_*'],                              (0.0, -7.0, 0.0),  (0, 0, 0),    0.75),
     ('rear subframe',  ['MOD_Chassis_Rear'],                               (0.0, 7.0, 0.0),   (0, 0, 0),    0.75),
     ('engine',         ['MOD_Engine'],                                     (0.0, 0.6, 3.6),   (-12, 0, 0),  0.95),
     ('gearbox',        ['MOD_Engine_Gearbox'],                             (0.0, 6.0, 0.5),   (0, 0, 0),    0.80),
@@ -216,23 +216,23 @@ ASSEMBLY = [
     ('wheel FR',       ['Wheel_FR_Steer'],                                 (-4.5, 0.0, 0.0),  (0, 0, 0),    0.60),
     ('wheel RL',       ['Wheel_RL_Steer'],                                 (4.5, 0.0, 0.0),   (0, 0, 0),    0.60),
     ('wheel RR',       ['Wheel_RR_Steer'],                                 (-4.5, 0.0, 0.0),  (0, 0, 0),    0.60),
-    ('interior',       ['MOD_Interior*'],                                  (0.0, 0.0, 3.4),   (0, 0, 0),    0.75),
+    ('interior',       ['MOD_Interior*', 'HINGE_SteeringWheel', 'HINGE_Screen'],                                  (0.0, 0.0, 3.4),   (0, 0, 0),    0.75),
     ('sills',          ['Body_Sill_L*'],                                   (3.5, 0.0, 0.0),   (0, 0, 0),    0.60),
     ('sills',          ['Body_Sill_R*'],                                   (-3.5, 0.0, 0.0),  (0, 0, 0),    0.60),
-    ('rear haunches',  ['Body_Rear_L*', 'Body_Liner_RL*'],                 (3.2, 2.2, 0.8),   (0, 0, -18),  0.70),
-    ('rear haunches',  ['Body_Rear_R*', 'Body_Liner_RR*'],                 (-3.2, 2.2, 0.8),  (0, 0, 18),   0.70),
-    ('engine deck',    ['Body_Deck*', 'Glass_Engine*'],                    (0.0, 3.0, 2.6),   (-20, 0, 0),  0.70),
+    ('rear haunches',  ['Body_Rear_L*', 'Body_Liner_RL*', 'Body_Quarter_L*', 'Body_Recess_SideIntake_L*'],                 (3.2, 2.2, 0.8),   (0, 0, -18),  0.70),
+    ('rear haunches',  ['Body_Rear_R*', 'Body_Liner_RR*', 'Body_Quarter_R*', 'Body_Recess_SideIntake_R*'],                 (-3.2, 2.2, 0.8),  (0, 0, 18),   0.70),
+    ('engine deck',    ['Body_Deck*', 'Glass_Engine*', 'Body_Recess_Scoop*'],                    (0.0, 3.0, 2.6),   (-20, 0, 0),  0.70),
     ('roof and glass', ['Body_Roof*', 'Glass_Windshield*', 'Glass_Roof*'], (0.0, -0.5, 3.2),  (8, 0, 0),    0.75),
-    ('front fenders',  ['Body_Fender_F_L*', 'Body_Liner_FL*'],             (3.2, -2.2, 0.6),  (0, 0, 16),   0.70),
-    ('front fenders',  ['Body_Fender_F_R*', 'Body_Liner_FR*'],             (-3.2, -2.2, 0.6), (0, 0, -16),  0.70),
+    ('front fenders',  ['Body_Fender_F_L*', 'Body_Liner_FL*', 'Body_Recess_Headlight_L*'],             (3.2, -2.2, 0.6),  (0, 0, 16),   0.70),
+    ('front fenders',  ['Body_Fender_F_R*', 'Body_Liner_FR*', 'Body_Recess_Headlight_R*'],             (-3.2, -2.2, 0.6), (0, 0, -16),  0.70),
     ('bonnet',         ['Body_Bonnet*'],                                   (0.0, -2.0, 2.8),  (18, 0, 0),   0.70),
-    ('front fascia',   ['Body_Bumper_F*', 'MOD_Front*', 'MOD_Lights*'],    (0.0, -6.5, 0.3),  (0, 0, 0),    0.70),
-    ('rear fascia',    ['Body_Tail*', 'MOD_Rear*', 'MOD_Aero*', 'HINGE_Wing'], (0.0, 6.5, 0.4), (0, 0, 0),  0.70),
+    ('front fascia',   ['Body_Bumper_F*', 'Body_Lower_F*', 'Body_Horseshoe*', 'Body_Recess_Horseshoe*', 'Body_Recess_Intake*', 'MOD_Front*', 'MOD_Lights*'],    (0.0, -6.5, 0.3),  (0, 0, 0),    0.70),
+    ('rear fascia',    ['Body_Tail*', 'Body_Lower_R*', 'Body_Recess_Rear*', 'MOD_Rear*', 'MOD_Aero*', 'HINGE_Wing*'], (0.0, 6.5, 0.4), (0, 0, 0),  0.70),
     ('doors close',    ['HINGE_Door_L'],                                   (3.6, 0.0, 0.5),   (0, 0, 0),    0.95),
     ('doors close',    ['HINGE_Door_R'],                                   (-3.6, 0.0, 0.5),  (0, 0, 0),    0.95),
 ]
 # units that are on stage from the first frame
-STATIC_UNITS = ['MOD_Chassis', 'MOD_Chassis_Tub']
+STATIC_UNITS = ['MOD_Chassis', 'MOD_Chassis_Tub', 'MOD_Body', 'MOD_Glass']
 # anything else lands with this label (from above)
 DEFAULT_LABEL = 'roof and glass'
 

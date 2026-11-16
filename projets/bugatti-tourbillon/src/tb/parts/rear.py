@@ -91,7 +91,7 @@ def build(ctx):
         return np.array([x, y, z]), t, n, h
 
     # ---- housing (dark smoked) and red cover
-    X = np.linspace(-HX, HX, 121)
+    X = np.linspace(-HX, HX, 241 if final else 121)
     zlo_pad = 0.0
     sec_h, sec_c = [], []
     for x in X:
@@ -156,7 +156,7 @@ def build(ctx):
     reg(eb, 'chrome')
 
     # ---------------------------------------------------------------- concave panel + wall + bumper block
-    XP = np.linspace(-0.795, 0.795, 65)
+    XP = np.linspace(-0.795, 0.795, 129 if final else 65)
     ZLOW = 0.568
 
     def zL(x):
@@ -182,7 +182,7 @@ def build(ctx):
         s = min(1.0, max(0.0, (a - z) / (a - b)))
         return y_top(x) + (y_bot(x) - y_top(x)) * e(s)
 
-    NV = 14
+    NV = 28 if final else 14
     rows_p, rows_w = [], []
     for x in XP:
         a, b = zT(x), zL(x)
@@ -276,17 +276,23 @@ def build(ctx):
         reg(ob, 'aluminum_polished')
 
     # ---------------------------------------------------------------- number plate + nameplate
+    PZ0, PZ1 = 0.585, 0.685
+    _yA, _yB = pan_y(0.0, PZ0), pan_y(0.0, PZ1)
+    P_SLOPE = (_yB - _yA) / (PZ1 - PZ0)
+
+    def ypl(x, z):
+        return _yA + P_SLOPE * (z - PZ0) + 0.0
+
     def pslab(name, x0, x1, z0, z1, oa, ob_, nz=6):
         secs = []
         for i in range(nz + 1):
             z = z0 + (z1 - z0) * i / nz
             xm = 0.5 * (x0 + x1)
             y = pan_y(xm, z) if True else 0
-            secs.append([(x0, pan_y(x0, z) + oa, z), (x1, pan_y(x1, z) + oa, z),
-                         (x1, pan_y(x1, z) - ob_, z), (x0, pan_y(x0, z) - ob_, z)])
+            secs.append([(x0, ypl(x0, z) + oa, z), (x1, ypl(x1, z) + oa, z),
+                         (x1, ypl(x1, z) - ob_, z), (x0, ypl(x0, z) - ob_, z)])
         return tube(name, secs, coll, sharp=40)
 
-    PZ0, PZ1 = 0.585, 0.685
     bars = []
     for (a, b, c, d) in [(-0.228, 0.228, PZ1, PZ1 + 0.012), (-0.228, 0.228, PZ0 - 0.012, PZ0),
                          (-0.228, -0.2155, PZ0, PZ1), (0.2155, 0.228, PZ0, PZ1)]:
@@ -296,12 +302,12 @@ def build(ctx):
     reg(bezel, 'carbon_gloss', 0.001)
     plate = pslab('Rear_Plate', -0.2155, 0.2155, PZ0, PZ1, 0.0065, 0.006, 4)
     reg(plate, 'aluminum_dark')
-    yp = pan_y(0.0, 0.635) + 0.0075
+    yp = ypl(0.0, 0.635) + 0.0078
     shear = 0.28
     nm = fit_text('Rear_Nameplate_Script', 'Tourbillon', 0.30, 0.050, 0.0007, coll, shear=0.0)
     # italic by shear in local XY (x += 0.28 y), then rotate to face +Y
     nm.data.transform(__import__('mathutils').Matrix(((1, shear, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1))))
-    nm.data.transform(__import__('mathutils').Matrix(((-1, 0, 0, 0), (0, 0, 1, yp), (0, 1, 0, 0.635), (0, 0, 0, 1))))
+    nm.data.transform(__import__('mathutils').Matrix(((-1, 0, 0, 0), (0, P_SLOPE, 1, yp), (0, 1, 0, 0.635), (0, 0, 0, 1))))
     nm.data.update()
     geo.recalc_normals(nm)
     reg(nm, 'chrome')
@@ -344,18 +350,32 @@ def build(ctx):
         return 0.60 + 0.22 * S(1.80, 1.88, y)
 
     cnt_clip = 0
+    YS = np.concatenate([np.linspace(0.90, 2.0, 34), np.linspace(2.0, 2.25, 14)[1:]])
+    XG = np.linspace(0.0, 0.84, 29)
+    ZG = np.zeros((len(YS), len(XG)))
+    for i, y in enumerate(YS):
+        for j, x in enumerate(XG):
+            z = ramp(y)
+            if rc_e is not None:
+                h = rc_e.cast((x, y, -0.5), (0, 0, 1), 3.0)
+                if h is not None and h[0].z < 0.6 and h[0].z - 0.018 < z:
+                    cnt_clip += 1
+                    z = max(0.112, h[0].z - 0.018)
+            ZG[i, j] = z
+    pp = np.pad(ZG, 2, mode='edge')
+    er = ZG.copy()
+    for di in range(-2, 3):
+        for dj in range(-2, 3):
+            er = np.minimum(er, pp[2 + di:2 + di + ZG.shape[0], 2 + dj:2 + dj + ZG.shape[1]])
+    for _ in range(2):
+        pp = np.pad(er, 1, mode='edge')
+        er = 0.5 * er + 0.125 * (pp[:-2, 1:-1] + pp[2:, 1:-1] + pp[1:-1, :-2] + pp[1:-1, 2:])
+    ZG = np.minimum(er, np.array([[ramp(y)] * len(XG) for y in YS]))
 
     def floor_z(x, y):
-        nonlocal cnt_clip
-        z = ramp(y)
-        if rc_e is not None:
-            h = rc_e.cast((x, y, -0.5), (0, 0, 1), 3.0)
-            if h is not None and h[0].z < 0.6 and h[0].z - 0.018 < z:
-                cnt_clip += 1
-                z = max(0.112, h[0].z - 0.018)
-        return z
+        col = [np.interp(abs(x), XG, ZG[i]) for i in range(len(YS))]
+        return float(np.interp(y, YS, col))
 
-    YS = np.concatenate([np.linspace(0.90, 2.0, 34), np.linspace(2.0, 2.25, 14)[1:]])
     rows = []
     for y in YS:
         r = []
@@ -398,9 +418,9 @@ def build(ctx):
     reg(fin, 'carbon_gloss', 0.0012)
 
     # ---------------------------------------------------------------- active wing
-    W = 0.66
+    W = 0.64
     YLE = spec.WING['pivot'][1]
-    NX, NS = 39, 22
+    NX, NS = (79, 40) if final else (47, 22)
     wx = np.linspace(-W, W, NX)
     secs = []
     zmax_dev = 0
@@ -416,15 +436,24 @@ def build(ctx):
             if z is None:
                 z = top_z(x * 0.95, y) or 0.86
             thick = 0.0224 * (0.2969 * math.sqrt(s) - 0.126 * s - 0.3516 * s * s + 0.2843 * s ** 3 - 0.1015 * s ** 4) / 0.098 + 0.003 * s
-            top.append((x, y, z + 0.012))
-            bot.append((x, y, z + 0.012 - max(thick, 0.0015)))
+            top.append((x, y, z + 0.008))
+            bot.append((x, y, z + 0.008 - max(thick, 0.0015)))
         secs.append(top + bot[::-1])
-    # smooth the top heights a little across x to hide the sampling noise
     arr = np.array(secs)
-    zt_arr = arr[:, :NS + 1, 2].copy()
-    for _ in range(2):
-        zt_arr[1:-1] = 0.25 * zt_arr[:-2] + 0.5 * zt_arr[1:-1] + 0.25 * zt_arr[2:]
-    dz = zt_arr - arr[:, :NS + 1, 2]
+    raw = arr[:, :NS + 1, 2].copy()
+    pad = np.pad(raw, ((4, 4), (2, 2)), mode='edge')
+    dil = raw.copy()
+    for di in range(-4, 5):
+        for dj in range(-2, 3):
+            dil = np.maximum(dil, pad[4 + di:4 + di + NX, 2 + dj:2 + dj + NS + 1])
+    for _ in range(10):
+        pp = np.pad(dil, ((1, 1), (1, 1)), mode='edge')
+        dil = 0.5 * dil + 0.125 * (pp[:-2, 1:-1] + pp[2:, 1:-1] + pp[1:-1, :-2] + pp[1:-1, 2:])
+    sj = np.linspace(0, 1, NS + 1)[None, :]
+    xj = np.abs(wx)[:, None]
+    wgt = np.maximum(1.0 - np.vectorize(lambda t: S(0.0, 0.30, t))(sj), np.vectorize(lambda t: S(0.78 * W, W, t))(xj))
+    dil = np.maximum(raw + 0.0015, dil * (1.0 - wgt) + (raw + 0.0015) * wgt)
+    dz = dil - raw
     arr[:, :NS + 1, 2] += dz
     arr[:, NS + 1:, 2] += dz[:, ::-1]
     blade = tube('Rear_Wing_Blade', arr, coll, sharp=50)
@@ -432,7 +461,10 @@ def build(ctx):
     mats.assign(blade, 'paint_secondary')
     mats.assign_faces(blade, 'carbon_gloss', lambda c, p: p.normal.z < -0.25)
     geo.mod_bevel(blade, width=0.0012, segments=2)
-    hinge = rig.wing_hinge()
+    # spec.WING max_angle is applied NEGATIVE by rig.wing_hinge() (trailing edge would dive into the deck),
+    # so the blade uses its own hinge with the positive sign (same pivot, same lift).
+    w = spec.WING
+    hinge = rig.hinge('Wing_Rear', w['pivot'], (1.0, 0.0, 0.0), 'wing', +w['max_angle'], translate=(0.0, 0.0, w['lift']))
     geo.parent(blade, hinge)
     struts = []
     for sx in (1, -1):
