@@ -37,3 +37,7 @@
 - Section: narrow bright brushed top (wheel_brushed), chamfered dark flanks; cap 0.19 R, dark gloss with silver EB oval; 5 bolts on the hub between the stems.
 - Coordinator widths (stem 0.10 R, arm 0.07 R) gave a thin petal flower; settled on stem 0.19 R, arm 0.15 to 0.17 R.
 - tris FL: final 137k, preview 49k. Sheet: out/renders/wheels/cmp_round3.png
+
+## Round 4 (v30/v31)
+- SPOKE: hub 0.33 R, stems 0.20 R wide fork at 0.47 R, arms 0.13 to 0.19 R, top_frac 0.80, pad_off 1.4 deg so arm pairs merge into a broad pad. tris FL final 137k, preview 49k. Sheet: cmp_round4.png
+- Still: arm pair at the rim shows a slight notch, fork pinch, flat chamfers.

@@ -143,8 +143,8 @@ CLINE_SIDE = [(-0.935, 0.272), (-0.70, 0.279), (-0.40, 0.290), (0.00, 0.302), (0
 DLO = [(-1.10, 0.846), (-0.20, 0.848), (0.20, 0.862), (0.36, 0.900), (0.44, 0.975), (0.47, 1.06),
        (0.47, 1.30), (-1.20, 1.30)]
 # openings
-INTAKE_F = [(0.40, 0.455), (0.62, 0.470), (0.80, 0.458), (0.895, 0.410), (0.912, 0.300), (0.885, 0.222),
-            (0.62, 0.200), (0.40, 0.208), (0.368, 0.262), (0.368, 0.410)]
+INTAKE_F = [(0.42, 0.440), (0.62, 0.452), (0.79, 0.442), (0.875, 0.405), (0.895, 0.310), (0.865, 0.238),
+            (0.62, 0.222), (0.43, 0.228), (0.395, 0.270), (0.395, 0.400)]
 SIDE_INTAKE = [(0.14, 0.42), (0.45, 0.44), (0.62, 0.55), (0.69, 0.70), (0.66, 0.83), (0.50, 0.875), (0.36, 0.86)]
 SCOOP = [(0.07, 0.76), (0.40, 0.78), (0.43, 0.86), (0.43, 1.52), (0.40, 1.60), (0.07, 1.62), (0.05, 1.55),
          (0.05, 0.83)]
@@ -376,7 +376,7 @@ def build(ctx):
     root = ctx.module_root('Body')
     skin = make_skin()
     final = ctx.final()
-    ds = 0.014 if final else 0.024
+    ds = 0.0095 if final else 0.021
     S = skin.column_params(ds)
     T = skin.row_params(ds)
     reg = regions(skin)
@@ -453,7 +453,7 @@ def build(ctx):
     # rear: last column closes with a dark wall
     rl = skin.eval(np.full_like(tt, S1), tt)
     rs = np.vstack([rl, (rl[::-1] * [-1, 1, 1])])
-    ob = BL.tunnel('Body_Recess_Rear', rs, None, 0.07, coll=coll, taper=0.03, direction=(0, 1, 0))
+    ob = BL.tunnel('Body_Recess_Rear', rs, None, 0.13, coll=coll, taper=0.07, direction=(0, 1, 0))
     mats.assign(ob, 'plastic_black')
     statics.append(ob)
     anchors['rear_opening'] = rs.tolist()

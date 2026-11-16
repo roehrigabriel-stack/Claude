@@ -208,12 +208,12 @@ class Skin:
         ps = self.eval(np.minimum(s + eps_s, self.s1), t) - self.eval(np.maximum(s - eps_s, self.s0), t)
         pt = self.eval(s, np.minimum(t + eps_t, self.K)) - self.eval(s, np.maximum(t - eps_t, 0.0))
         n = np.cross(ps, pt)
-        # orientation: outward = away from the car's centre axis
-        P = self.eval(s, t)
-        out = P - np.stack([np.zeros_like(s), P[:, 1], np.full_like(s, 0.55)], axis=1)
-        sgn = np.sign(np.sum(n * out, axis=1))
-        sgn[sgn == 0] = 1
-        n *= sgn[:, None]
+        # the parameterisation is regular, so one global sign makes every normal point
+        # outwards (reference: the roof, where outward is +z)
+        if not hasattr(self, '_sgn'):
+            self._sgn = 1.0
+            self._sgn = 1.0 if self.normal([0.0], [0.5])[0, 2] > 0 else -1.0
+        n = n * self._sgn
         return n / (np.linalg.norm(n, axis=1)[:, None] + 1e-12)
 
     # -------------------------------------------------- grids
@@ -454,10 +454,10 @@ def mesh_region(skin, S, T, region, name, coll=None, offset=0.0, flip=False, ret
     F = np.stack([vid[fi, fj], vid[fi + 1, fj], vid[fi + 1, fj + 1], vid[fi, fj + 1]], axis=1)
     # orientation: the grid (s along +y, t going down/outward) gives normals ... check one face
     if len(F):
-        a, b, c = V[F[0, 0]], V[F[0, 1]], V[F[0, 2]]
-        n = np.cross(b - a, c - a)
-        nn = skin.normal(np.array([ps[F[0, 0]]]), np.array([pt[F[0, 0]]]))[0]
-        if np.dot(n, nn) < 0:
+        # majority vote over all faces (single boundary faces can be degenerate after snapping)
+        n = np.cross(V[F[:, 2]] - V[F[:, 0]], V[F[:, 3]] - V[F[:, 1]])
+        nn = skin.normal(ps[F[:, 0]], pt[F[:, 0]])
+        if np.sum(np.sum(n * nn, axis=1)) < 0:
             F = F[:, ::-1]
     if flip:
         F = F[:, ::-1]

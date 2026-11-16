@@ -13,6 +13,9 @@ from mathutils import Matrix, Vector
 from tb import geo, mats
 
 
+SEG_SCALE = 1.0   # lathe segment multiplier (set below 1 for preview quality)
+
+
 # ----------------------------------------------------------------- frames
 def frame(origin, a, b, c):
     """4x4 matrix whose columns are the local axes a, b, c and translation origin."""
@@ -96,6 +99,7 @@ def lathe(name, profile, seg=48, coll=None, knurl=None, sharp=35.0, closed_profi
     """Revolve a profile [(r, z), ...] around local Z. knurl = (count, depth, z0, z1)
     adds axial ridges (knurled grip) between z0 and z1."""
     prof = list(profile)
+    seg = max(12, int(seg * SEG_SCALE))
     if closed_profile:
         prof = prof + [prof[0]]
     rows = []
@@ -163,6 +167,7 @@ def annulus(name, r0, r1, z0, z1, seg=64, coll=None, teeth=0, tooth_h=0.0):
 
 def gear(name, r_hub, r_rim, z0, z1, teeth, coll=None, spokes=4):
     """Watch-style wheel: toothed rim, hub and spokes (local XY plane)."""
+    teeth = max(10, int(teeth * (0.5 + 0.5 * SEG_SCALE)))
     w = r_rim - r_hub
     rim = annulus(name, r_rim - 0.18 * r_rim, r_rim, z0, z1, teeth=teeth, tooth_h=0.08 * r_rim, coll=coll)
     hub = annulus(name + '_h', r_hub * 0.35, r_hub, z0, z1, seg=24, coll=coll)
@@ -422,7 +427,7 @@ def vent(prefix, coll, w, h, depth=0.02):
 # ----------------------------------------------------------------- own materials (never mutate the shared library)
 ALIAS = {'leather_light': 'Interior_LeatherPale', 'leather_dark': 'Interior_LeatherDark',
          'leather_slate': 'Interior_LeatherSlate', 'alcantara': 'Interior_Alcantara', 'carpet': 'Interior_Carpet',
-         'fabric_light': 'Interior_Fabric', 'stitch': 'Interior_Stitch', 'emit_interior': 'Interior_Ambient'}
+         'fabric_light': 'Interior_Fabric', 'stitch': 'Interior_Stitch', 'dash_top': 'Interior_DashTop', 'emit_interior': 'Interior_Ambient'}
 
 
 def _bump(m, kind, scale, strength, dist):
@@ -457,6 +462,34 @@ def make_materials():
     _bump(mats.custom('Interior_Alcantara', base_color='#0f1318', roughness=0.95, sheen=0.2, sheen_roughness=0.5), 'noise', 1400.0, 0.25, 0.0004)
     _bump(mats.custom('Interior_Carpet', base_color='#6f8aa3', roughness=0.92, sheen=0.3, sheen_roughness=0.5), 'noise', 500.0, 0.5, 0.0004)
     _bump(mats.custom('Interior_Fabric', base_color='#7e97ab', roughness=0.85, sheen=0.5, sheen_roughness=0.5, specular=0.2), 'noise', 700.0, 0.4, 0.0004)
+    dt = mats.custom('Interior_DashTop', base_color='#26394a', roughness=0.5, **lk)
+    _bump(dt, 'voronoi', 900.0, 0.12, 0.0003)
+    nt = dt.node_tree
+    b = [n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'][0]
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    sp = nt.nodes.new('ShaderNodeSeparateXYZ')
+    nt.links.new(tc.outputs['Object'], sp.inputs['Vector'])
+    ab = nt.nodes.new('ShaderNodeMath')
+    ab.operation = 'ABSOLUTE'
+    nt.links.new(sp.outputs['X'], ab.inputs[0])
+    mu = nt.nodes.new('ShaderNodeMath')
+    mu.operation = 'MULTIPLY'
+    mu.inputs[1].default_value = 0.30
+    nt.links.new(ab.outputs['Value'], mu.inputs[0])
+    ad = nt.nodes.new('ShaderNodeMath')
+    ad.operation = 'ADD'
+    nt.links.new(sp.outputs['Y'], ad.inputs[0])
+    nt.links.new(mu.outputs['Value'], ad.inputs[1])
+    mr = nt.nodes.new('ShaderNodeMapRange')
+    mr.inputs['From Min'].default_value = -1.00
+    mr.inputs['From Max'].default_value = -0.94
+    nt.links.new(ad.outputs['Value'], mr.inputs['Value'])
+    mx = nt.nodes.new('ShaderNodeMix')
+    mx.data_type = 'RGBA'
+    mx.inputs['A'].default_value = (0.0194, 0.0409, 0.0685, 1.0)
+    mx.inputs['B'].default_value = (0.1912, 0.2788, 0.3918, 1.0)
+    nt.links.new(mr.outputs['Result'], mx.inputs['Factor'])
+    nt.links.new(mx.outputs['Result'], b.inputs['Base Color'])
     mats.custom('Interior_Stitch', base_color='#b8d0e0', roughness=0.6)
     mats.emissive('Interior_Ambient', '#46d6d0', 5.0, 'interior_lights')
 

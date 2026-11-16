@@ -557,7 +557,7 @@ def window_outlines(P, grow, design=None):
 
 
 SPOKE = dict(rhoF=0.47, wS=0.20, wA0=0.13, wA1=0.19, a0=40.0, k1=0.26, k2=0.22, rho_end=1.02,
-             top_frac=0.80, depth_k=1.0, pad_off=3.2)
+             top_frac=0.80, depth_k=1.0, pad_off=1.4)
 
 
 def _mat_brushed():

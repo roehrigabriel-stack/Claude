@@ -281,7 +281,7 @@ def seat_path():
 def build_seat(K):
     """Left (driver) seat; returns the list of objects."""
     coll = K.coll
-    ns = 300 if K.fin else 110
+    ns = 300 if K.fin else 72
     p2 = geo.catmull_rom(seat_path(), per_seg=12)
     p2 = geo.resample(p2, ns)
     p2 = np.asarray(p2)[:, :2] if np.asarray(p2).shape[1] >= 2 else np.asarray(p2)
@@ -461,9 +461,8 @@ def build_dash(K):
     geo.delete_faces(dash, lambda c, f: abs(c.x) < SCREEN_HW - 0.004 and
                      SCREEN_HINGE_Y + 0.004 < c.y < SCREEN_HINGE_Y + SCREEN_LEN - 0.004 and f.normal.z > 0.5)
     mats.assign(dash, 'leather_light')
-    ncol = len(rows[0])
-    mats.assign_faces(dash, 'leather_dark', lambda c, p: (p.normal.z > 0.3 and (p.index % ncol) < 3 * per)
-                      or p.normal.z < -0.5 or abs(p.normal.x) > 0.9)
+    mats.assign_faces(dash, 'leather_dark', lambda c, p: p.normal.z < -0.5 or abs(p.normal.x) > 0.9)
+    mats.assign_faces(dash, 'dash_top', lambda c, p: p.normal.z > 0.3)
     K.dash.append(dash)
     # well under the screen lid
     well = geo.box('Interior_ScreenWell', (2 * SCREEN_HW - 0.01, SCREEN_LEN - 0.01, 0.04),
@@ -934,7 +933,7 @@ def door_inner_x(y, z):
 
 def build_doors(K):
     coll = K.coll
-    ny = 70 if K.fin else 48
+    ny = 70 if K.fin else 36
     rows = []
     ys = np.linspace(DOOR_Y0, DOOR_Y1, ny)
     for y in ys:
@@ -964,7 +963,7 @@ def build_doors(K):
         geo.flip_normals(ov)
     mats.assign(ov, 'fabric_light')
     pts = [(door_inner_x(yc + ra * math.cos(t), zc + rb * math.sin(t)) - 0.0035, yc + ra * math.cos(t), zc + rb * math.sin(t))
-           for t in np.linspace(0, 2 * math.pi, 64, endpoint=False)]
+           for t in np.linspace(0, 2 * math.pi, 64 if K.fin else 36, endpoint=False)]
     pip = L.tube('Interior_DoorPiping_L', pts, 0.003, coll, res=2, cyclic=True)
     mats.assign(pip, 'leather_dark')
     parts += [ov, pip]
@@ -1066,6 +1065,7 @@ def build(ctx):
     import os
     K = Ctx(ctx)
     L.make_materials()
+    L.SEG_SCALE = 1.0 if K.fin else 0.55
     build_tub(K)
     build_seats(K)
     build_dash(K)

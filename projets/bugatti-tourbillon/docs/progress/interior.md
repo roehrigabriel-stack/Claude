@@ -35,3 +35,10 @@ Owner files: src/tb/parts/interior.py, src/tb/parts/interior_lib.py, out/scripts
 - Session 2 end state: builds clean (preview ~290k tris, final ~420k). Envelope check script: out/scripts/interior/check.py (all objects inside z_headliner / belt / door rule; door cards <= door_rear_y(z)-4 cm).
 - Portrait pop-up screen (0.13 x 0.18) with UI elements in emit_screen on a dark glass face; rig.hinge('Screen') prop screen; steering hinge 'SteeringWheel' prop steer, +120 deg (verified rim turns, hub fixed).
 - Remaining differences: dash is smooth but box-like (no sculpted arches / Y-shaped spine of B1), seat piping names '.001' collisions (cosmetic), console crystal knobs smaller than B3, no embossed 'Tourbillon' script on door pocket, floor/footwell flat.
+
+## Round 2 (critic report docs/reviews/interior_r1.md)
+- Own materials only (Interior_*: LeatherPale/Dark/Slate, Alcantara, Carpet, Fabric, Stitch, DashTop shader, Ambient emissive) via L.IM wrapper in interior_lib; shared library untouched.
+- Dash rebuilt: crowned hoods around a 5.5 cm centre valley (dash_profile top = ZDT - valley...), shader-based curved dark shelf / pale split.
+- Floor blue carpet, footwell side panels pale leather; wheel rim slate with pale top band + posts; round domed hub; console narrowed (x0.78) with 3 glass knobs, 8 varied keys + red, glass start lever;
+  cluster larger (0.25 m) with window / subdials / label / triangular cut-outs; seats wider + higher bolsters + oval headrest slot; door card pull loop, pocket lid + Tourbillon script, carbon trim; screen portrait, arm, knob; buckle anchored on console.
+- Preview 211k tris. Renders suffix _r2 (sheet_r2, sheet_r2e dark, sheet_r2s steer/door).
