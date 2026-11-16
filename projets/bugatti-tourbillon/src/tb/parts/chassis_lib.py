@@ -236,16 +236,26 @@ class MeshBuilder:
         """Round tube along a path. r scalar, radii optional per-point multipliers."""
         self.sweep(path, circle(seg), scale=(r if radii is None else r * np.asarray(radii)), caps=caps)
 
-    def rings(self, rings, caps=True, closed=True):
+    def lathe(self, p0, p1, profile, seg=24, up=(0, 0, 1), loop=True):
+        """Hollow revolve about p0->p1 of a profile [(t, r)...] (t along the axis, 0..1). loop closes the profile."""
+        p0, p1 = V(p0), V(p1)
+        u, v, w = frame_from_axis(p1 - p0, up)
+        ang = np.linspace(0, 2 * math.pi, seg, endpoint=False)
+        ca, sa = np.cos(ang)[:, None], np.sin(ang)[:, None]
+        rows = [p0 + (p1 - p0) * t + (u * ca + v * sa) * r for t, r in profile]
+        self.rings(rows, caps=False, closed=True, loop_n=loop)
+
+    def rings(self, rings, caps=True, closed=True, loop_n=False):
         """Loft through rings (list of [m,3] arrays with same m)."""
         R = [np.asarray(r, dtype=float) for r in rings]
         n, m = len(R), len(R[0])
         faces = []
-        for i in range(n - 1):
+        for i in range(n if loop_n else n - 1):
+            i2 = (i + 1) % n
             for j in range(m if closed else m - 1):
                 j2 = (j + 1) % m
-                faces.append((i * m + j, i * m + j2, (i + 1) * m + j2, (i + 1) * m + j))
-        if caps and closed:
+                faces.append((i * m + j, i * m + j2, i2 * m + j2, i2 * m + j))
+        if caps and closed and not loop_n:
             faces.append(tuple(range(m - 1, -1, -1)))
             faces.append(tuple(range((n - 1) * m, n * m)))
         self.add(np.vstack(R), faces)

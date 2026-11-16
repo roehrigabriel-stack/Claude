@@ -77,7 +77,7 @@ def main():
         if i >= len(m) - 3000:
             print("  %-10s %6.2f  (inside final fade, skipped)" % (typ, t)); continue
         best = None
-        for nm_, E in (("hi", E_hi), ("lo", E_lo), ("mid", E_mid)):
+        for nm_, E in ((("hi", E_hi), ("lo", E_lo)) if typ in ("land", "ignition") else (("hi", E_hi), ("mid", E_mid))):
             lo_, hi_ = max(i - int(0.03 * SR), 2), i + int(0.03 * SR)
             seg = E[lo_:hi_]
             dlt = np.array([seg[min(k + int(0.006 * SR), len(seg) - 1)] - seg[k] for k in range(len(seg))])
@@ -87,13 +87,19 @@ def main():
             ratio = dlt[j] / (np.median(bgd) + 1e-3)
             if best is None or dlt[j] > best[1]:
                 best = (nm_, dlt[j], (lo_ + j - i) / SR * 1000, ratio)
-        slow = typ in ("whoosh", "light_sweep", "wing_up", "wing_down", "door_open", "door_close", "screen")
+        slow = typ not in ("land", "ignition", "screen")
         tot += 1
-        flag = "ok" if best[1] > 3.0 else ("slow (gradual by design)" if slow else "WEAK")
-        if flag == "ok" or slow:
+        if slow:
+            flag = "gradual by design (rise %+.1f dB)" % best[1]
             ok += 1
-        print("  %-10s %6.2f %-24s band %-3s rise %+5.1f dB/6ms at %+4.0f ms (x%4.1f of bg)  %s" % (typ, t, e.get("label", "")[:24], best[0], best[1], best[2], best[3], flag))
-    print("  -> %d / %d events with a clear transient or a gradual-by-design envelope" % (ok, tot))
+        elif best[1] > 6.0 and abs(best[2]) <= 30:
+            flag = "ok"
+            ok += 1
+        else:
+            flag = "WEAK"
+        pk = np.abs(y[:, i:i + int(0.1 * SR)]).max()
+        print("  %-10s %6.2f %-24s band %-3s rise %+5.1f dB/6ms at %+4.0f ms (x%4.1f of bg)  peak100ms %6.1f dBFS  %s" % (typ, t, e.get("label", "")[:24], best[0], best[1], best[2], best[3], 20 * np.log10(pk), flag))
+    print("  -> %d / %d events with a clear transient (land / ignition / screen) or a gradual-by-design envelope" % (ok, tot))
     out = os.path.join(os.path.dirname(a.wav), "spectrogram.png")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", a.wav, "-lavfi", "showspectrumpic=s=1600x800:legend=1", out])
     r = subprocess.run(["ffmpeg", "-hide_banner", "-i", a.wav, "-af", "ebur128=peak=true", "-f", "null", "-"], capture_output=True, text=True)

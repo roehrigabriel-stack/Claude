@@ -179,8 +179,19 @@ blender -b --factory-startup -P src/build.py -- --parts wheels --out out/blend/w
 For anything special write your own small script under `out/scripts/<part>/` using the Python
 API (`from tb import build, studio, rig`; see the docstring of `studio.py`).
 
-Then LOOK at your renders with the Read tool and compare them side by side with
-the references. You are expected to iterate: build, render, look, fix.
+`render_views.py` also writes ONE contact sheet `sheet<suffix>.png` in the output
+folder containing every image of that call (labelled). **Look at the sheet, not at
+the individual images** (one Read per iteration); open a single image only when
+you need full resolution on a detail. `python3 tools/sheet.py out.png a.png b.png ...`
+builds a sheet from any images (for example a render next to a reference crop).
+You are expected to iterate: build, render, look at the sheet, fix.
+
+USAGE BUDGET (important): the project runs under tight usage limits and agents
+get cut off when the limit is reached. Work in few, large steps: write big
+chunks of code per edit, chain build + render + sheet in one shell command, keep
+command output short (grep / tail), avoid re-reading files you already know, and
+do not narrate. Update your progress log every 10 to 15 tool calls so another
+agent can continue from it.
 
 Machine etiquette (several agents share 4 CPU cores):
 

@@ -33,19 +33,20 @@ def axle_params(key):
     P['J2'] = (9.5 if front else 11.5) * 0.0254 / 2.0   # half rim width (bead seat to bead seat)
     P['fl_t'] = 0.0085                         # flange thickness
     P['fl_h'] = 0.0175                         # flange height above the bead seat
-    P['Rf'] = P['Rr'] - 0.014                  # outer radius of the spoke face (meets the lip)
+    P['Rf'] = P['Rr'] - 0.008                  # outer radius of the spoke face (meets the lip)
     P['a_rim'] = P['J2'] + 0.0015              # spoke front face at the rim
-    P['a_hub'] = P['a_rim'] - 0.031            # spoke front face at the hub (dish depth)
+    P['a_hub'] = P['a_rim'] - 0.044            # spoke front face at the hub (dish depth)
     P['d_hub'] = 0.033                         # spoke depth at the hub
     P['a_mount'] = P['a_hub'] - P['d_hub']     # hub mounting face
-    P['x_d'] = P['a_mount'] - 0.072            # brake disc centre plane
+    P['x_d'] = P['a_mount'] - 0.066            # brake disc centre plane
     P['disc_ro'] = disc['d'] / 2.0
     P['disc_t'] = disc['t']
     P['disc_ri'] = P['disc_ro'] - (0.066 if front else 0.060)
     P['cal_span'] = 30.0 if front else 25.0    # caliper half span (deg) at the outer radius
-    P['cal_phi'] = 8.0 if front else 180.0 - 8.0   # front: rear of disc; rear: front of disc
+    P['cal_phi'] = -8.0 if front else 22.0     # rear half of the disc at both axles (photos)
     P['cal_w'] = 0.060 if front else 0.052     # caliper half width (axial)
     P['pitches'] = 58 if front else 62
+    P['aspect'] = t['aspect']
     return P
 
 
@@ -409,7 +410,7 @@ def build_sidewall_text(name, P, prof, side, coll, final):
         return float(np.interp(r, r_tab, a_tab))
 
     t = spec.TIRE_F if P['front'] else spec.TIRE_R
-    size_txt = '%d/%d ZR%d' % (round(t['width'] * 1000), round(t['aspect'] * 100), t['rim_in'])
+    size_txt = '%d/%d ZR %d' % (round(t['width'] * 1000), round(t['aspect'] * 100), t['rim_in'])
     rho_m = Rr + 0.50 * H
     items = [
         ('MICHELIN', 0.026, rho_m, 90.0, 1.06),
@@ -468,36 +469,48 @@ def spoke_depth(P, rho):
     return geo.lerp(P['d_hub'], 0.021, geo.smoothstep(0.25, 1.0, rho))
 
 
-def window_outlines(P, grow):
+def _edge_pts(ang_deg, r0, w0, r1, w1, sgn):
+    """Two points of one edge of a tapered radial bar along direction ang_deg
+    (normalised units). sgn=+1: edge on the counter-clockwise side."""
+    d = np.array(polar(1.0, ang_deg))
+    n = np.array([-d[1], d[0]]) * sgn
+    return d * r0 + n * w0 / 2, d * r1 + n * w1 / 2
+
+
+def window_outlines(P, grow, design=None):
     """The 10 spoke windows (5 inside the V pairs, 5 between them), as lists of (y, z)
     in metres, for one `grow` offset (front of the cutter: +, back: -)."""
+    # Y spokes (refs/web/wheel_closeup_02/03, blueprint_large): a stem from the hub forks
+    # at rhoN into two arms; arms of neighbouring spokes run to the rim side by side with a
+    # tall narrow window (W) between them; big pentagonal windows (U) inside each fork.
+    D = dict(rhoN=0.47, wA=0.092, wH0=0.175, wH1=0.115, rho_foot=5.0, rho_hub=0.300,
+             rho_rim=0.962, foot_ang=9.0, rcW=0.050, rcU=0.050)
+    if design:
+        D.update(design)
     Rf = P['Rf']
-    rhoN = 0.50       # node radius where two arms and a hub spoke meet
-    wA = 0.118        # arm width (normalised)
-    wH = 0.125        # hub spoke width
-    rho_foot = 0.79   # bottom of the foot pad between the two arms of a V
-    rho_hub = 0.335   # hub disc
-    rho_rim = 0.965   # window top at the rim
+    rhoN, wA = D['rhoN'], D['wA']
     ps = []
-    # local frame of foot 0: +Y = foot direction, X = tangential
-    F_r = np.array(polar(1.03, 90.0 - 7.5))     # right arm meets the rim
-    F_l = np.array(polar(1.03, 90.0 + 7.5))
+    # local frame of foot 0: +Y = foot direction (phi = 90), X = tangential
+    fa = D['foot_ang']
+    F_r = np.array(polar(1.03, 90.0 - fa))     # right arm meets the rim
+    F_l = np.array(polar(1.03, 90.0 + fa))
     N_r = np.array(polar(rhoN, 90.0 - 36.0))
     N_l = np.array(polar(rhoN, 90.0 + 36.0))
     # W window (inside the V)
     cW = np.array([0.0, 0.58])
+    er = _edge_pts(90.0 - 36.0, 0.15, D['wH0'], rhoN, D['wH1'], +1)
+    el = _edge_pts(90.0 + 36.0, 0.15, D['wH0'], rhoN, D['wH1'], -1)
     hW = [hp_line(F_r, N_r, wA / 2, cW), hp_line(F_l, N_l, wA / 2, cW),
-          (np.array([0.0, 1.0]), rho_foot),
-          hp_line((0, 0), N_r, wH / 2, cW), hp_line((0, 0), N_l, wH / 2, cW),
-          (np.array([0.0, -1.0]), -rho_hub)]
-    # U window (between V0 and the next V clockwise, i.e. towards -X), centred on N_r direction
-    F2_l = np.array(polar(1.03, 90.0 - 72.0 + 7.5))
+          (np.array([0.0, 1.0]), D['rho_foot'])] + hp_circle_inside(D['rho_rim'], 70.0, 110.0, 2.0) + [
+          hp_line(er[0], er[1], 0.0, cW), hp_line(el[0], el[1], 0.0, cW),
+          (np.array([0.0, -1.0]), -D['rho_hub'])]
+    # U window (between V0 and the next V clockwise), centred on the N_r direction
+    F2_l = np.array(polar(1.03, 90.0 - 72.0 + fa))
     cU = np.array(polar(0.80, 90.0 - 36.0))
     hU = [hp_line(F_r, N_r, wA / 2, cU), hp_line(F2_l, N_r, wA / 2, cU)]
-    hU += hp_circle_inside(rho_rim, 90.0 - 66.0, 90.0 - 6.0, step=2.5)
-    rcW, rcU = 0.050, 0.045
-    W = rounded_outline(hW, rcW, grow / Rf)
-    U = rounded_outline(hU, rcU, grow / Rf)
+    hU += hp_circle_inside(D['rho_rim'], 90.0 - 68.0, 90.0 - 4.0, step=2.0)
+    W = rounded_outline(hW, D['rcW'], grow / Rf)
+    U = rounded_outline(hU, D['rcU'], grow / Rf)
     for k in range(5):
         rot = math.radians(72.0 * k)
         c, s = math.cos(rot), math.sin(rot)
@@ -587,24 +600,22 @@ def build_rim(name, key, quality, coll):
     for i, (fp, bp) in enumerate(zip(fronts, backs)):
         cutters.append(prism_between('%s_cut%d' % (name, i), fp, bp, a_f, a_b, coll))
     # bolt counterbores at the hub spoke roots
-    bolt_r = 0.27 * Rf
-    bolt_phis = [90.0 - 36.0 + 72.0 * k for k in range(5)]
+    bolt_r = 0.235 * Rf
+    bolt_phis = [90.0 + 72.0 * k for k in range(5)]
     for k, ph in enumerate(bolt_phis):
         y, z = polar(bolt_r, ph)
         c = geo.cylinder('%s_cb%d' % (name, k), 0.0118, 0.016, 'X',
-                         (face_a(P, 0.27) + 0.002, y, z), segments=24, coll=coll)
+                         (face_a(P, 0.235) + 0.002, y, z), segments=24, coll=coll)
         cutters.append(c)
     # centre recess for the cap
-    cutters.append(geo.cylinder(name + '_cbc', 0.046, 0.012, 'X', (P['a_hub'] + 0.002, 0, 0), segments=48,
+    cutters.append(geo.cylinder(name + '_cbc', 0.039, 0.012, 'X', (P['a_hub'] + 0.002, 0, 0), segments=48,
                                 coll=coll))
     cut = geo.join(cutters, name + '_cutters')
     geo.boolean(face, cut, 'DIFFERENCE', solver='EXACT')
-    geo.mod_bevel(face, width=0.0016, segments=2, angle=30.0)
-    geo.apply_modifiers(face)
     geo.shade(face, True, 30.0)
     # two-tone: diamond cut front faces (outer web) bright, hub star and walls dark
     mats.assign(face, _mat_dark())
-    rho_split = 0.475
+    rho_split = 0.33
 
     def bright(c, p):
         r = math.hypot(c.y, c.z)
@@ -615,7 +626,7 @@ def build_rim(name, key, quality, coll):
     bolts = []
     for k, ph in enumerate(bolt_phis):
         y, z = polar(bolt_r, ph)
-        a0 = face_a(P, 0.27) - 0.006
+        a0 = face_a(P, 0.235) - 0.006
         prof_b = [(0.0, a0), (0.0098, a0), (0.0098, a0 + 0.0075), (0.0088, a0 + 0.0092), (0.0050, a0 + 0.0092),
                   (0.0050, a0 + 0.0070), (0.0, a0 + 0.0070)]
         b = geo.revolve('%s_Bolt%d' % (name, k), prof_b, segments=24, axis='X', origin=(0, y, z), coll=coll,
@@ -633,16 +644,16 @@ def build_rim(name, key, quality, coll):
 
 def build_cap(name, P, coll):
     a0 = P['a_hub'] - 0.010
-    prof = [(0.0, a0 + 0.0135), (0.030, a0 + 0.0130), (0.040, a0 + 0.0118), (0.0435, a0 + 0.0100),
-            (0.0440, a0), (0.0, a0)]
+    prof = [(0.0, a0 + 0.0135), (0.026, a0 + 0.0131), (0.033, a0 + 0.0120), (0.0365, a0 + 0.0102),
+            (0.0370, a0), (0.0, a0)]
     cap = geo.revolve(name, prof, segments=64, axis='X', coll=coll, sharp_angle=35.0)
     geo.merge_by_distance(cap, 1e-6)
     geo.recalc_normals(cap)
     mats.assign(cap, _mat_dark())
     # oval badge ring
     top = a0 + 0.0135
-    ell = [(0.024 * math.cos(t), 0.0165 * math.sin(t)) for t in np.linspace(0, TAU, 64, endpoint=False)]
-    ell_in = [(0.0205 * math.cos(t), 0.0132 * math.sin(t)) for t in np.linspace(0, TAU, 64, endpoint=False)]
+    ell = [(0.0235 * math.cos(t), 0.0160 * math.sin(t)) for t in np.linspace(0, TAU, 64, endpoint=False)]
+    ell_in = [(0.0205 * math.cos(t), 0.0131 * math.sin(t)) for t in np.linspace(0, TAU, 64, endpoint=False)]
     ring = _ring_prism(name + '_Oval', ell, ell_in, top - 0.001, top + 0.0012, coll)
     plate = prism_between(name + '_OvalPlate', ell_in, ell_in, top + 0.0004, top - 0.001, coll)
     mats.assign(ring, _mat_bright())
@@ -760,7 +771,7 @@ def build_disc(name, key, quality, coll):
         bobs.append(geo.cylinder('%s_bob%d' % (name, k), 0.0055, 0.010, 'X', (xd + t / 2 + 0.002, y, z),
                                  segments=16, coll=coll))
     bob = geo.join(bobs, name + '_Bobbins')
-    mats.assign(bob, 'titanium')
+    mats.assign(bob, 'steel_dark')
     return disc, bell, bob
 
 
@@ -826,7 +837,8 @@ def build_caliper(name, key, quality, coll):
     m.harden_normals = False
     geo.apply_modifiers(body)
     geo.shade(body, True, 50.0)
-    mats.assign(body, 'caliper')
+    mats.assign(body, mats.custom('wheel_caliper_black', base_color='#08090A', metallic=0.1, roughness=0.25,
+                                  coat=1.0, coat_roughness=0.03))
     # pads (backing plate + friction material) on both sides of the disc
     pads = []
     pout = caliper_outline(dict(P, cal_span=P['cal_span'] * 0.78), grow=-0.008)
@@ -891,11 +903,29 @@ def build_carrier(name, key, quality, coll):
 # =====================================================================
 # materials
 # =====================================================================
+def _bevel_mat(name, radius, **kw):
+    """Principled material whose shading normal is rounded by a Bevel node (render-time
+    edge rounding: crisp highlights on machined edges without extra geometry)."""
+    m = bpy.data.materials.get(name)
+    if m is not None:
+        return m
+    m = mats.custom(name, **kw)
+    nt = m.node_tree
+    b = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    bev = nt.nodes.new('ShaderNodeBevel')
+    bev.samples = 6
+    bev.inputs['Radius'].default_value = radius
+    bev.location = (0, -300)
+    nt.links.new(bev.outputs['Normal'], b.inputs['Normal'])
+    nt.links.new(bev.outputs['Normal'], b.inputs['Coat Normal'])
+    return m
+
+
 def _mat_bright():
-    return mats.custom('wheel_diamond_cut', base_color='#D9DCDF', metallic=1.0, roughness=0.11,
-                       anisotropic=0.35, coat=0.6, coat_roughness=0.05)
+    return _bevel_mat('wheel_diamond_cut', 0.0016, base_color='#D9DCDF', metallic=1.0, roughness=0.12,
+                      anisotropic=0.3, coat=0.5, coat_roughness=0.05)
 
 
 def _mat_dark():
-    return mats.custom('wheel_paint_dark', base_color='#1C1E21', metallic=0.55, roughness=0.32, coat=1.0,
-                       coat_roughness=0.04)
+    return _bevel_mat('wheel_paint_dark', 0.0016, base_color='#1C1E21', metallic=0.55, roughness=0.32,
+                      coat=1.0, coat_roughness=0.04)

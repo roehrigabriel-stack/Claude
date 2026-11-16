@@ -1077,11 +1077,10 @@ def render(tl_path, out_path):
         y = tpl_servo(d_, 600, 150, srv, 1.0, tail=0.05)
         F.put(M, e["t"], y, 0.0, gain=0.7, hall=0.35, room=0.1)
     for e in F.ev("screen"):
-        for j, m_ in enumerate((81, 88, 93)):
-            F.put(M, e["t"] + 0.075 * j, tpl_chime(float(midi(m_)), 1.8, 1.0 - 0.1 * j), -0.3 + 0.3 * j, gain=0.34, hall=0.7)
-        # tiny "boot" digital blips
-        for j in range(3):
-            F.put(M, e["t"] - 0.12 + 0.04 * j, tpl_tick(2, 0.8, np.random.default_rng(70 + j)), 0.5, gain=0.5, room=0.3)
+        # glass "tap" transient followed by a small crystalline three-note chime (Dm add9 colour)
+        F.put(M, e["t"], tpl_tick(1, 1.3, np.random.default_rng(70)), 0.2, gain=0.8, room=0.3, hall=0.2)
+        for j, m_ in enumerate((88, 93, 100)):
+            F.put(M, e["t"] + 0.07 * j, tpl_chime(float(midi(m_)), 1.8, 1.0 - 0.12 * j), -0.35 + 0.35 * j, gain=0.5, hall=0.7)
 
     # 12. riser into the ignition
     log("riser, ignition")
@@ -1257,6 +1256,10 @@ def render(tl_path, out_path):
         if abs(L_ - target) < 0.08:
             break
         g *= 10 ** ((target - L_) / 20.0)
+    pre = np.max(np.abs(mix * g), axis=0)
+    post = np.max(np.abs(y), axis=0)
+    gr = 20 * np.log10(np.maximum(post, 1e-9) / np.maximum(pre, 1e-9))
+    log("limiter/soft clip: max reduction %.1f dB, >1 dB on %.2f %% of samples, >3 dB on %.3f %%" % (-gr.min(), 100 * np.mean(gr < -1), 100 * np.mean(gr < -3)))
     tp = true_peak(y)
     lim = 10 ** (-1.2 / 20.0)
     if tp > lim:

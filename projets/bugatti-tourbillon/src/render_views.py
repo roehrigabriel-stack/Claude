@@ -40,6 +40,7 @@ def main():
     ap.add_argument('--suffix', default='')
     ap.add_argument('--transparent', action='store_true')
     ap.add_argument('--no-floor', action='store_true')
+    ap.add_argument('--no-sheet', action='store_true')
     a = ap.parse_args(argv)
 
     if not a.no_build:
@@ -64,13 +65,19 @@ def main():
                 ob.hide_render = True
     bpy.context.view_layer.update()
     views = [v for v in a.views.split(',') if v]
+    made = []
     if views:
-        studio.render_views(a.out, views, objs=car or None, suffix=a.suffix)
+        made += studio.render_views(a.out, views, objs=car or None, suffix=a.suffix)
     for i, spec_str in enumerate(a.cam):
         v = [float(x) for x in spec_str.split(',')]
         name = a.name[i] if i < len(a.name) else 'cam%d' % i
-        studio.shot(os.path.join(a.out, name + a.suffix + '.png'), v[0:3], v[3:6],
-                    lens=v[6] if len(v) > 6 else 50.0, res=res, samples=a.samples)
+        made.append(studio.shot(os.path.join(a.out, name + a.suffix + '.png'), v[0:3], v[3:6],
+                                lens=v[6] if len(v) > 6 else 50.0, res=res, samples=a.samples))
+    if made and not a.no_sheet:
+        # one contact sheet with every image of this call: look at this single file
+        import subprocess
+        tool = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tools', 'sheet.py')
+        subprocess.run(['python3', tool, os.path.join(a.out, 'sheet' + a.suffix + '.png')] + made, check=False)
     print('[render_views] done ->', a.out)
 
 
